@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Roboto, Arial, sans-serif;
+        font-size: 13px;
+        color: #202124;
+        margin: 12px;
+      }
+      h2 { font-size: 15px; margin: 0 0 2px; }
+      .muted { color: #5f6368; font-size: 12px; }
+      .card {
+        background: #f8f9fa;
+        border: 1px solid #dadce0;
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 12px;
+      }
+      label { display: block; font-weight: 500; margin: 10px 0 4px; }
+      select, textarea {
+        width: 100%;
+        box-sizing: border-box;
+        font-family: inherit;
+        font-size: 13px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        padding: 6px;
+      }
+      textarea { height: 190px; resize: vertical; }
+      .send {
+        display: block;
+        text-align: center;
+        background: #25d366;
+        color: #fff;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 12px;
+      }
+      .send.disabled { background: #dadce0; color: #80868b; pointer-events: none; }
+      button.secondary {
+        width: 100%;
+        margin-top: 8px;
+        padding: 8px;
+        background: #fff;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .warn { color: #c5221f; }
+      .ok { color: #188038; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2 id="name">Načítám…</h2>
+      <div class="muted" id="phone"></div>
+      <div class="muted" id="meta"></div>
+    </div>
+
+    <label for="template">Šablona</label>
+    <select id="template"></select>
+
+    <label for="message">Zpráva</label>
+    <textarea id="message"></textarea>
+
+    <a id="send" class="send disabled" target="_blank" rel="noopener">Otevřít WhatsApp</a>
+    <button class="secondary" id="refresh">Načíst vybraný řádek</button>
+    <div class="muted" id="status" style="margin-top:8px;"></div>
+
+    <script>
+      var templates = [];
+      var contact = null;
+
+      function el(id) { return document.getElementById(id); }
+
+      function loadTemplates() {
+        google.script.run.withSuccessHandler(function (list) {
+          templates = list;
+          var select = el('template');
+          select.innerHTML = '';
+          list.forEach(function (template, index) {
+            var option = document.createElement('option');
+            option.value = String(index);
+            option.textContent = template.name;
+            select.appendChild(option);
+          });
+          applyTemplate();
+        }).getTemplates();
+      }
+
+      function applyTemplate() {
+        if (!templates.length || !contact) return;
+        var template = templates[Number(el('template').value) || 0];
+        google.script.run.withSuccessHandler(function (text) {
+          el('message').value = text;
+          updateLink();
+        }).renderTemplate(template.body, contact);
+      }
+
+      function updateLink() {
+        var link = el('send');
+        if (!contact || !contact.phoneValid) {
+          link.className = 'send disabled';
+          link.removeAttribute('href');
+          return;
+        }
+        google.script.run.withSuccessHandler(function (url) {
+          link.href = url;
+          link.className = 'send';
+        }).buildLink(contact.phone, el('message').value);
+      }
+
+      function showSelection(data, force) {
+        if (!data.ok) {
+          el('name').textContent = '—';
+          el('phone').innerHTML = '<span class="warn">' + data.error + '</span>';
+          el('meta').textContent = '';
+          contact = null;
+          updateLink();
+          return;
+        }
+        // Only rebuild the message when the user moved to a different row,
+        // so edits are not thrown away by the polling.
+        var changed = !contact || contact.row !== data.row;
+        contact = data;
+        el('name').textContent = data.name || '(bez jména)';
+        el('phone').innerHTML = data.phoneValid
+          ? '+' + data.phone + ' <span class="muted">(řádek ' + data.row + ')</span>'
+          : '<span class="warn">Neplatné číslo: ' + (data.rawPhone || 'prázdné') + '</span>';
+        el('meta').textContent = [
+          data.status ? 'Stav: ' + data.status : '',
+          data.sentAt ? 'Odesláno: ' + data.sentAt : ''
+        ].filter(Boolean).join(' · ');
+
+        if (changed || force) {
+          el('status').textContent = '';
+          applyTemplate();
+        } else {
+          updateLink();
+        }
+      }
+
+      function refresh(force) {
+        google.script.run.withSuccessHandler(function (data) {
+          showSelection(data, force);
+        }).getSelection();
+      }
+
+      el('template').addEventListener('change', applyTemplate);
+      el('message').addEventListener('input', updateLink);
+      el('refresh').addEventListener('click', function () { refresh(true); });
+
+      el('send').addEventListener('click', function () {
+        if (!contact) return;
+        google.script.run.withSuccessHandler(function (stamp) {
+          el('status').innerHTML = '<span class="ok">Označeno jako odesláno ' + stamp + '</span>';
+        }).markSent(contact.row);
+      });
+
+      loadTemplates();
+      refresh(true);
+      // Follow the selection in the sheet.
+      setInterval(function () { refresh(false); }, 2000);
+    </script>
+  </body>
+</html>
