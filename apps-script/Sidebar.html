@@ -3,53 +3,27 @@
   <head>
     <base target="_top">
     <style>
-      body {
-        font-family: Roboto, Arial, sans-serif;
-        font-size: 13px;
-        color: #202124;
-        margin: 12px;
-      }
+      body { font-family: Roboto, Arial, sans-serif; font-size: 13px; color: #202124; margin: 12px; }
       h2 { font-size: 15px; margin: 0 0 2px; }
       .muted { color: #5f6368; font-size: 12px; }
-      .card {
-        background: #f8f9fa;
-        border: 1px solid #dadce0;
-        border-radius: 6px;
-        padding: 10px;
-        margin-bottom: 12px;
-      }
+      .card { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 6px; padding: 10px; margin-bottom: 12px; }
       label { display: block; font-weight: 500; margin: 10px 0 4px; }
       select, textarea {
-        width: 100%;
-        box-sizing: border-box;
-        font-family: inherit;
-        font-size: 13px;
-        border: 1px solid #dadce0;
-        border-radius: 4px;
-        padding: 6px;
+        width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px;
+        border: 1px solid #dadce0; border-radius: 4px; padding: 6px;
       }
-      textarea { height: 190px; resize: vertical; }
+      textarea { height: 180px; resize: vertical; }
       .send {
-        display: block;
-        text-align: center;
-        background: #25d366;
-        color: #fff;
-        font-weight: 600;
-        text-decoration: none;
-        padding: 10px;
-        border-radius: 4px;
-        margin-top: 12px;
+        display: block; text-align: center; background: #25d366; color: #fff; font-weight: 600;
+        text-decoration: none; padding: 10px; border-radius: 4px; margin-top: 12px;
       }
       .send.disabled { background: #dadce0; color: #80868b; pointer-events: none; }
       button.secondary {
-        width: 100%;
-        margin-top: 8px;
-        padding: 8px;
-        background: #fff;
-        border: 1px solid #dadce0;
-        border-radius: 4px;
-        cursor: pointer;
+        width: 100%; margin-top: 8px; padding: 8px; background: #fff;
+        border: 1px solid #dadce0; border-radius: 4px; cursor: pointer;
       }
+      .row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+      .row .muted { white-space: nowrap; }
       .warn { color: #c5221f; }
       .ok { color: #188038; }
     </style>
@@ -69,27 +43,40 @@
 
     <a id="send" class="send disabled" target="_blank" rel="noopener">Otevřít WhatsApp</a>
     <button class="secondary" id="refresh">Načíst vybraný řádek</button>
+
+    <div class="row">
+      <span class="muted">Otevírat v:</span>
+      <select id="target">
+        <option value="web">WhatsApp Web</option>
+        <option value="app">aplikaci (wa.me)</option>
+      </select>
+    </div>
+
     <div class="muted" id="status" style="margin-top:8px;"></div>
 
     <script>
       var templates = [];
       var contact = null;
+      var target = 'web';
 
       function el(id) { return document.getElementById(id); }
 
-      function loadTemplates() {
-        google.script.run.withSuccessHandler(function (list) {
-          templates = list;
+      function loadSettings() {
+        google.script.run.withSuccessHandler(function (settings) {
+          templates = settings.templates;
+          target = settings.target;
+          el('target').value = target;
+
           var select = el('template');
           select.innerHTML = '';
-          list.forEach(function (template, index) {
+          templates.forEach(function (template, index) {
             var option = document.createElement('option');
             option.value = String(index);
             option.textContent = template.name;
             select.appendChild(option);
           });
           applyTemplate();
-        }).getTemplates();
+        }).getPanelSettings();
       }
 
       function applyTemplate() {
@@ -111,7 +98,7 @@
         google.script.run.withSuccessHandler(function (url) {
           link.href = url;
           link.className = 'send';
-        }).buildLink(contact.phone, el('message').value);
+        }).buildLink(contact.phone, el('message').value, target);
       }
 
       function showSelection(data, force) {
@@ -123,8 +110,8 @@
           updateLink();
           return;
         }
-        // Only rebuild the message when the user moved to a different row,
-        // so edits are not thrown away by the polling.
+        // Rebuild the message only when a different row was selected, so your
+        // edits are not thrown away by the polling below.
         var changed = !contact || contact.row !== data.row;
         contact = data;
         el('name').textContent = data.name || '(bez jména)';
@@ -154,6 +141,12 @@
       el('message').addEventListener('input', updateLink);
       el('refresh').addEventListener('click', function () { refresh(true); });
 
+      el('target').addEventListener('change', function () {
+        target = el('target').value;
+        google.script.run.saveLinkTarget(target);
+        updateLink();
+      });
+
       el('send').addEventListener('click', function () {
         if (!contact) return;
         google.script.run.withSuccessHandler(function (stamp) {
@@ -161,9 +154,9 @@
         }).markSent(contact.row);
       });
 
-      loadTemplates();
+      loadSettings();
       refresh(true);
-      // Follow the selection in the sheet.
+      // Follow the row you click in the sheet.
       setInterval(function () { refresh(false); }, 2000);
     </script>
   </body>

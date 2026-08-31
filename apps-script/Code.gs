@@ -1,11 +1,10 @@
 /**
  * WhatsApp follow-up for a Google Sheets contact list.
  *
- * Adds a "WhatsApp" menu to the spreadsheet. After a call, select the row of
- * the person you just spoke to, open the side panel, pick a template, adjust
- * the text and click the button - WhatsApp Web (or the desktop app) opens with
- * the message already typed for that number. The time is written back to the
- * sheet so you can see who has already been contacted.
+ * After a call: click the contact's row, pick a template in the side panel,
+ * adjust the text and press the green button. WhatsApp opens with the message
+ * already typed for that number; you only press Send. The time is written back
+ * into the sheet so you can see who has been contacted.
  *
  * No API keys, no Meta Business account, no risk of a number ban.
  * See CloudApi.gs for the fully automatic (zero-click) alternative.
@@ -20,13 +19,14 @@ const CONFIG = {
   sentColumnHeader: 'WhatsApp odesláno',
 };
 
-// Header names the script recognises, in Czech and English. Diacritics and
-// letter case are ignored, so "Jméno" and "jmeno" both match.
+// Header names recognised automatically, in Czech and English. Diacritics and
+// letter case are ignored, so "Jméno" and "jmeno" both match. If your headers
+// are different, use "WhatsApp -> Nastavit sloupce" instead of editing this.
 const COLUMN_ALIASES = {
-  name: ['jmeno', 'jmeno a prijmeni', 'name', 'kontakt', 'osoba', 'klient', 'prijmeni'],
-  phone: ['telefon', 'tel', 'mobil', 'cislo', 'telefonni cislo', 'phone', 'number'],
+  name: ['jmeno', 'jmeno a prijmeni', 'name', 'kontakt', 'osoba', 'klient', 'prijmeni', 'firma'],
+  phone: ['telefon', 'tel', 'mobil', 'cislo', 'telefonni cislo', 'phone', 'number', 'kontakt telefon'],
   note: ['poznamka', 'poznamky', 'note', 'notes', 'popis', 'detail'],
-  status: ['stav', 'status', 'hovor', 'volano', 'volani'],
+  status: ['stav', 'status', 'hovor', 'volano', 'volani', 'vysledek'],
 };
 
 // Message templates offered in the side panel.
@@ -34,21 +34,29 @@ const COLUMN_ALIASES = {
 const TEMPLATES = [
   {
     name: 'Po hovoru – shrnutí',
-    body: 'Dobrý den {jmeno},\n\nděkuji za dnešní telefonát. Posílám shrnutí toho, na čem jsme se domluvili:\n\n- \n- \n\nKdyby cokoliv, klidně mi napište sem.\n\nHezký den,\nMarta',
+    body: 'Dobrý den {jmeno},\n\nděkuji za dnešní telefonát. Posílám shrnutí toho, na čem jsme se domluvili:\n\n- \n- \n\nKdyby cokoliv, klidně mi napište sem.\n\nHezký den',
   },
   {
     name: 'Nedovolala jsem se',
-    body: 'Dobrý den {jmeno},\n\nzkoušela jsem se Vám dnes dovolat, bohužel jsem Vás nezastihla. Ozvete se prosím, až budete mít chvíli, nebo mi napište, kdy se Vám to hodí.\n\nDěkuji a hezký den,\nMarta',
+    body: 'Dobrý den {jmeno},\n\nzkoušela jsem se Vám dnes dovolat, bohužel jsem Vás nezastihla. Ozvěte se prosím, až budete mít chvíli, nebo mi napište, kdy se Vám to hodí.\n\nDěkuji a hezký den',
   },
   {
     name: 'Poslání informací',
-    body: 'Dobrý den {jmeno},\n\njak jsme se domluvili po telefonu, posílám slíbené informace:\n\n\nDejte mi prosím vědět, jestli je to takhle v pořádku.\n\nS pozdravem,\nMarta',
+    body: 'Dobrý den {jmeno},\n\njak jsme se domluvili po telefonu, posílám slíbené informace:\n\n\nDejte mi prosím vědět, jestli je to takhle v pořádku.\n\nS pozdravem',
   },
   {
     name: 'Připomenutí schůzky',
-    body: 'Dobrý den {jmeno},\n\njen připomínám naši domluvenou schůzku. Kdyby se něco změnilo, dejte mi prosím včas vědět.\n\nTěším se,\nMarta',
+    body: 'Dobrý den {jmeno},\n\njen připomínám naši domluvenou schůzku. Kdyby se něco změnilo, dejte mi prosím včas vědět.\n\nTěším se',
   },
 ];
+
+const FIELD_LABELS = {
+  name: 'Jméno',
+  phone: 'Telefon',
+  note: 'Poznámka',
+  status: 'Stav',
+  sent: 'Odesláno',
+};
 
 /** Adds the custom menu when the spreadsheet is opened. */
 function onOpen() {
@@ -56,7 +64,7 @@ function onOpen() {
     .createMenu('WhatsApp')
     .addItem('Otevřít panel', 'showSidebar')
     .addSeparator()
-    .addItem('Zkontrolovat nastavení', 'checkSetup')
+    .addItem('Nastavit sloupce', 'showColumnPicker')
     .addToUi();
 }
 
@@ -66,28 +74,60 @@ function showSidebar() {
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
-/** Reports which columns were detected, so header problems are easy to spot. */
-function checkSetup() {
-  const sheet = SpreadsheetApp.getActiveSheet();
-  const columns = findColumns_(sheet);
-  const label = function (key) {
-    return columns[key] ? columnLetter_(columns[key]) : 'NENALEZENO';
-  };
-  const message =
-    'List: ' + sheet.getName() + '\n\n' +
-    'Jméno: ' + label('name') + '\n' +
-    'Telefon: ' + label('phone') + '\n' +
-    'Poznámka: ' + label('note') + '\n' +
-    'Stav: ' + label('status') + '\n' +
-    'Odesláno: ' + label('sent') + '\n\n' +
-    'Pokud něco chybí, přejmenujte hlavičku sloupce nebo přidejte název do ' +
-    'COLUMN_ALIASES v souboru Code.gs.';
-  SpreadsheetApp.getUi().alert('Nastavení', message, SpreadsheetApp.getUi().ButtonSet.OK);
+/** Opens the dialog for mapping sheet columns onto the fields the script uses. */
+function showColumnPicker() {
+  const html = HtmlService.createHtmlOutputFromFile('Columns').setWidth(420).setHeight(430);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Nastavit sloupce');
 }
 
-/** Returns the templates for the side panel. */
-function getTemplates() {
-  return TEMPLATES;
+// --- called from the HTML files ---------------------------------------------
+
+/** Returns the templates and the saved "open in" preference. */
+function getPanelSettings() {
+  return {
+    templates: TEMPLATES,
+    target: PropertiesService.getUserProperties().getProperty('linkTarget') || 'web',
+  };
+}
+
+/** Remembers whether links open WhatsApp Web or the app. */
+function saveLinkTarget(target) {
+  PropertiesService.getUserProperties().setProperty('linkTarget', target === 'app' ? 'app' : 'web');
+}
+
+/** Headers of the active sheet plus the current mapping, for the dialog. */
+function getColumnSetup() {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const width = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(CONFIG.headerRow, 1, 1, width).getDisplayValues()[0];
+  return {
+    sheetName: sheet.getName(),
+    headers: headers.map(function (header, index) {
+      return { index: index + 1, label: columnLetter_(index + 1) + ' – ' + (header || '(prázdné)') };
+    }),
+    detected: findColumns_(sheet),
+    saved: readSavedMap_(sheet),
+    fields: FIELD_LABELS,
+  };
+}
+
+/** Stores the mapping chosen in the dialog. Values are 1-based, 0 = auto. */
+function saveColumnMap(map) {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const cleaned = {};
+  Object.keys(FIELD_LABELS).forEach(function (field) {
+    const value = Number(map && map[field]);
+    if (value > 0) cleaned[field] = value;
+  });
+  PropertiesService.getDocumentProperties().setProperty(mapKey_(sheet), JSON.stringify(cleaned));
+  return findColumns_(sheet);
+}
+
+/** Forgets the mapping, so the automatic header detection is used again. */
+function clearColumnMap() {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  PropertiesService.getDocumentProperties().deleteProperty(mapKey_(sheet));
+  return findColumns_(sheet);
 }
 
 /**
@@ -103,12 +143,15 @@ function getSelection() {
 
   const row = range.getRow();
   if (row <= CONFIG.headerRow) {
-    return { ok: false, error: 'Vyberte řádek s kontaktem (ne hlavičku).' };
+    return { ok: false, error: 'Klikněte na řádek s kontaktem (ne na hlavičku).' };
   }
 
   const columns = findColumns_(sheet);
   if (!columns.phone) {
-    return { ok: false, error: 'Nenašla jsem sloupec s telefonem. Použijte "Zkontrolovat nastavení".' };
+    return {
+      ok: false,
+      error: 'Nenašla jsem sloupec s telefonem. Otevřete WhatsApp → Nastavit sloupce.',
+    };
   }
 
   // Display values keep the number formatted exactly as it looks in the sheet,
@@ -137,11 +180,17 @@ function getSelection() {
 }
 
 /**
- * Builds the click-to-chat link. WhatsApp expects digits only, no "+".
+ * Builds the click-to-chat link.
+ * "web" goes straight into WhatsApp Web; "app" uses wa.me, which hands over to
+ * the desktop or mobile app (with one extra confirmation click).
  * https://faq.whatsapp.com/5913398998672934
  */
-function buildLink(phone, message) {
-  return 'https://wa.me/' + normalizePhone_(phone) + '?text=' + encodeURIComponent(message);
+function buildLink(phone, message, target) {
+  const digits = normalizePhone_(phone);
+  const text = encodeURIComponent(message);
+  return target === 'app'
+    ? 'https://wa.me/' + digits + '?text=' + text
+    : 'https://web.whatsapp.com/send?phone=' + digits + '&text=' + text;
 }
 
 /** Writes the current time into the "sent" column of the given row. */
@@ -149,7 +198,11 @@ function markSent(row) {
   const sheet = SpreadsheetApp.getActiveSheet();
   const columns = findColumns_(sheet);
   const column = columns.sent || createSentColumn_(sheet);
-  const stamp = Utilities.formatDate(new Date(), sheet.getParent().getSpreadsheetTimeZone(), 'd.M.yyyy H:mm');
+  const stamp = Utilities.formatDate(
+    new Date(),
+    sheet.getParent().getSpreadsheetTimeZone(),
+    'd.M.yyyy H:mm'
+  );
   sheet.getRange(row, column).setValue(stamp);
   return stamp;
 }
@@ -169,12 +222,21 @@ function renderTemplate(body, contact) {
 
 // --- helpers ---------------------------------------------------------------
 
-/** Maps the logical column names onto column indexes (1-based). */
+/**
+ * Maps the logical fields onto column indexes (1-based, 0 = not found).
+ * A mapping saved from the dialog wins; the rest is guessed from the headers.
+ */
 function findColumns_(sheet) {
   const width = Math.max(sheet.getLastColumn(), 1);
   const headers = sheet.getRange(CONFIG.headerRow, 1, 1, width).getDisplayValues()[0];
   const found = { name: 0, phone: 0, note: 0, status: 0, sent: 0 };
   const sentKey = simplify_(CONFIG.sentColumnHeader);
+
+  const saved = readSavedMap_(sheet);
+  Object.keys(found).forEach(function (field) {
+    const value = Number(saved[field]);
+    if (value > 0 && value <= width) found[field] = value;
+  });
 
   headers.forEach(function (header, index) {
     const key = simplify_(header);
@@ -194,6 +256,20 @@ function findColumns_(sheet) {
   return found;
 }
 
+function mapKey_(sheet) {
+  return 'columnMap:' + sheet.getSheetId();
+}
+
+function readSavedMap_(sheet) {
+  const raw = PropertiesService.getDocumentProperties().getProperty(mapKey_(sheet));
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) || {};
+  } catch (error) {
+    return {};
+  }
+}
+
 /** Appends the timestamp column and returns its index. */
 function createSentColumn_(sheet) {
   const column = sheet.getLastColumn() + 1;
@@ -207,7 +283,8 @@ function simplify_(value) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -223,7 +300,10 @@ function normalizePhone_(raw) {
     value = value.slice(1);
   } else if (value.slice(0, 2) === '00') {
     value = value.slice(2);
-  } else if (value.length <= 10 && value.slice(0, CONFIG.defaultCountryCode.length) !== CONFIG.defaultCountryCode) {
+  } else if (
+    value.length <= 10 &&
+    value.slice(0, CONFIG.defaultCountryCode.length) !== CONFIG.defaultCountryCode
+  ) {
     // A local number without a prefix - assume the default country.
     value = CONFIG.defaultCountryCode + value.replace(/^0+/, '');
   }
@@ -231,7 +311,7 @@ function normalizePhone_(raw) {
   return value.replace(/\D/g, '');
 }
 
-/** "Jan Novák" -> "Jane" is not attempted; we just take the first word. */
+/** First word of the full name, used for the greeting. */
 function firstName_(fullName) {
   return String(fullName || '').trim().split(/\s+/)[0] || '';
 }

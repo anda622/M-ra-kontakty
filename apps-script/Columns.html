@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Roboto, Arial, sans-serif; font-size: 13px; color: #202124; margin: 16px; }
+      p.intro { margin: 0 0 14px; color: #5f6368; }
+      table { width: 100%; border-collapse: collapse; }
+      td { padding: 5px 0; vertical-align: middle; }
+      td.label { width: 110px; font-weight: 500; }
+      select { width: 100%; padding: 5px; border: 1px solid #dadce0; border-radius: 4px; font-size: 13px; }
+      .buttons { margin-top: 18px; display: flex; gap: 8px; }
+      button { padding: 8px 14px; border-radius: 4px; border: 1px solid #dadce0; background: #fff; cursor: pointer; font-size: 13px; }
+      button.primary { background: #1a73e8; border-color: #1a73e8; color: #fff; font-weight: 500; }
+      #status { margin-top: 12px; color: #188038; min-height: 16px; }
+      .hint { color: #5f6368; font-size: 12px; margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <p class="intro">
+      Vyberte, který sloupec listu <b id="sheetName"></b> obsahuje co.
+      „Automaticky“ znamená, že si to skript určí sám podle názvu hlavičky.
+    </p>
+
+    <table id="fields"></table>
+
+    <div class="buttons">
+      <button class="primary" id="save">Uložit</button>
+      <button id="reset">Zpět na automaticky</button>
+    </div>
+    <div id="status"></div>
+    <p class="hint">
+      Sloupec „Odesláno“ nemusíte vyplňovat – pokud chybí, skript si ho sám přidá
+      na konec tabulky.
+    </p>
+
+    <script>
+      var setup = null;
+
+      function render(data) {
+        setup = data;
+        document.getElementById('sheetName').textContent = data.sheetName;
+        var table = document.getElementById('fields');
+        table.innerHTML = '';
+
+        Object.keys(data.fields).forEach(function (field) {
+          var row = table.insertRow();
+          var label = row.insertCell();
+          label.className = 'label';
+          label.textContent = data.fields[field];
+
+          var cell = row.insertCell();
+          var select = document.createElement('select');
+          select.id = 'field-' + field;
+
+          var auto = document.createElement('option');
+          auto.value = '0';
+          auto.textContent = data.detected[field]
+            ? 'Automaticky (' + columnLabel(data.detected[field]) + ')'
+            : 'Automaticky (nenalezeno)';
+          select.appendChild(auto);
+
+          data.headers.forEach(function (header) {
+            var option = document.createElement('option');
+            option.value = String(header.index);
+            option.textContent = header.label;
+            select.appendChild(option);
+          });
+
+          select.value = String(data.saved[field] || 0);
+          cell.appendChild(select);
+        });
+      }
+
+      function columnLabel(index) {
+        var header = setup.headers.filter(function (h) { return h.index === index; })[0];
+        return header ? header.label : '?';
+      }
+
+      function collect() {
+        var map = {};
+        Object.keys(setup.fields).forEach(function (field) {
+          map[field] = Number(document.getElementById('field-' + field).value) || 0;
+        });
+        return map;
+      }
+
+      function afterSave(columns) {
+        document.getElementById('status').textContent =
+          columns.phone ? 'Uloženo.' : 'Uloženo, ale sloupec s telefonem stále chybí.';
+        google.script.run.withSuccessHandler(render).getColumnSetup();
+      }
+
+      document.getElementById('save').addEventListener('click', function () {
+        google.script.run.withSuccessHandler(afterSave).saveColumnMap(collect());
+      });
+
+      document.getElementById('reset').addEventListener('click', function () {
+        google.script.run.withSuccessHandler(afterSave).clearColumnMap();
+      });
+
+      google.script.run.withSuccessHandler(render).getColumnSetup();
+    </script>
+  </body>
+</html>
