@@ -192,7 +192,63 @@ function getSelection() {
     phone: phone,
     phoneValid: phone.length >= 9,
     sentAt: cell(columns.sent),
+    progress: getProgress_(sheet, columns),
   };
+}
+
+/**
+ * Jumps the selection to the next contact that has no timestamp yet, starting
+ * below the current row and wrapping around at the end.
+ */
+function goToNextUncontacted() {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const columns = findColumns_(sheet);
+  if (!columns.phone) {
+    return { ok: false, error: 'Nenašla jsem sloupec s telefonem. Otevřete WhatsApp → Nastavit sloupce.' };
+  }
+
+  const lastRow = sheet.getLastRow();
+  const count = lastRow - CONFIG.headerRow;
+  if (count < 1) return { ok: false, error: 'V tabulce nejsou žádné kontakty.' };
+
+  const phones = sheet.getRange(CONFIG.headerRow + 1, columns.phone, count, 1).getDisplayValues();
+  const sent = columns.sent
+    ? sheet.getRange(CONFIG.headerRow + 1, columns.sent, count, 1).getDisplayValues()
+    : null;
+
+  const active = SpreadsheetApp.getActiveRange();
+  const start = active ? Math.max(active.getRow() - CONFIG.headerRow, 0) : 0;
+
+  for (let step = 0; step < count; step++) {
+    const index = (start + step) % count;
+    if (normalizePhone_(phones[index][0]).length < 9) continue;
+    if (sent && String(sent[index][0]).trim()) continue;
+    sheet.setActiveRange(sheet.getRange(CONFIG.headerRow + 1 + index, 1));
+    return getSelection();
+  }
+
+  return { ok: false, error: 'Hotovo – všem kontaktům s číslem už jste psala.' };
+}
+
+/** How many contacts with a usable number already have a timestamp. */
+function getProgress_(sheet, columns) {
+  const lastRow = sheet.getLastRow();
+  const count = lastRow - CONFIG.headerRow;
+  if (count < 1 || !columns.phone) return { total: 0, done: 0 };
+
+  const phones = sheet.getRange(CONFIG.headerRow + 1, columns.phone, count, 1).getDisplayValues();
+  const sent = columns.sent
+    ? sheet.getRange(CONFIG.headerRow + 1, columns.sent, count, 1).getDisplayValues()
+    : null;
+
+  let total = 0;
+  let done = 0;
+  for (let i = 0; i < count; i++) {
+    if (normalizePhone_(phones[i][0]).length < 9) continue;
+    total++;
+    if (sent && String(sent[i][0]).trim()) done++;
+  }
+  return { total: total, done: done };
 }
 
 /**

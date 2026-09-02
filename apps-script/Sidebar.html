@@ -26,6 +26,9 @@
       .row .muted { white-space: nowrap; }
       .warn { color: #c5221f; }
       .ok { color: #188038; }
+      .progress { margin-top: 10px; text-align: center; }
+      .bar { height: 4px; background: #e8eaed; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+      .bar span { display: block; height: 100%; background: #25d366; }
     </style>
   </head>
   <body>
@@ -42,7 +45,9 @@
     <textarea id="message"></textarea>
 
     <a id="send" class="send disabled" target="_blank" rel="noopener">Otevřít WhatsApp</a>
+    <button class="secondary" id="next">Další nekontaktovaný ▸</button>
     <button class="secondary" id="refresh">Načíst vybraný řádek</button>
+    <div class="progress muted" id="progress"></div>
 
     <div class="row">
       <span class="muted">Otevírat v:</span>
@@ -101,6 +106,18 @@
         }).buildLink(contact.phone, el('message').value, target);
       }
 
+      function showProgress(progress) {
+        var box = el('progress');
+        if (!progress || !progress.total) {
+          box.innerHTML = '';
+          return;
+        }
+        var percent = Math.round((progress.done / progress.total) * 100);
+        box.innerHTML =
+          'Kontaktováno ' + progress.done + ' z ' + progress.total +
+          '<div class="bar"><span style="width:' + percent + '%"></span></div>';
+      }
+
       function showSelection(data, force) {
         if (!data.ok) {
           el('name').textContent = '—';
@@ -110,6 +127,7 @@
           updateLink();
           return;
         }
+        showProgress(data.progress);
         // Rebuild the message only when a different row was selected, so your
         // edits are not thrown away by the polling below.
         var changed = !contact || contact.row !== data.row;
@@ -141,6 +159,14 @@
       el('message').addEventListener('input', updateLink);
       el('refresh').addEventListener('click', function () { refresh(true); });
 
+      el('next').addEventListener('click', function () {
+        el('status').textContent = 'Hledám…';
+        google.script.run.withSuccessHandler(function (data) {
+          el('status').textContent = '';
+          showSelection(data, true);
+        }).goToNextUncontacted();
+      });
+
       el('target').addEventListener('change', function () {
         target = el('target').value;
         google.script.run.saveLinkTarget(target);
@@ -151,6 +177,7 @@
         if (!contact) return;
         google.script.run.withSuccessHandler(function (stamp) {
           el('status').innerHTML = '<span class="ok">Označeno jako odesláno ' + stamp + '</span>';
+          refresh(false);
         }).markSent(contact.row);
       });
 
