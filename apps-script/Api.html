@@ -39,6 +39,15 @@
     <label for="templateLang">Jazyk šablony</label>
     <input id="templateLang" placeholder="cs">
 
+    <label for="templateParameters">Proměnné šablony</label>
+    <input id="templateParameters" placeholder="firstName">
+    <div class="hint">
+      Co se doplní do {{1}}, {{2}}, … – oddělte čárkou, v pořadí podle šablony.
+      Možnosti: <b>firstName</b> (křestní jméno), <b>name</b> (celé jméno),
+      <b>note</b> (poznámka), <b>status</b> (stav), <b>phone</b> (číslo).
+      Šablona bez proměnných = nechte prázdné.
+    </div>
+
     <div class="buttons">
       <button class="primary" id="save">Uložit</button>
       <button id="clear">Smazat token</button>
@@ -60,6 +69,7 @@
         el('phoneNumberId').value = settings.phoneNumberId;
         el('templateName').value = settings.templateName;
         el('templateLang').value = settings.templateLang;
+        el('templateParameters').value = settings.templateParameters;
         el('token').placeholder = settings.hasToken
           ? '(uložený – vyplňte jen při změně)'
           : 'zatím nevyplněno';
@@ -81,7 +91,8 @@
             token: el('token').value,
             phoneNumberId: el('phoneNumberId').value,
             templateName: el('templateName').value,
-            templateLang: el('templateLang').value
+            templateLang: el('templateLang').value,
+            templateParameters: el('templateParameters').value
           });
       });
 
@@ -97,7 +108,7 @@
         google.script.run
           .withSuccessHandler(function (text) { message(text); })
           .withFailureHandler(function (error) { message(error.message, true); })
-          .sendTestMessage(el('testPhone').value, 'Test');
+          .sendTestMessage(el('testPhone').value);
       });
 
       google.script.run.withSuccessHandler(render).getApiSettings();

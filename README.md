@@ -84,11 +84,61 @@ Přepínač **Otevírat v**: *WhatsApp Web* jde rovnou do chatu (vyžaduje jedno
 naskenovat QR kód), *aplikace (wa.me)* předá zprávu desktopové nebo mobilní
 aplikaci.
 
-### 3. Tlačítka u řádků (automatické odesílání)
+### 3. Registrace u Mety (jednorázově)
 
-1. **WhatsApp → Automatické odesílání – nastavení** a vyplňte přístupový token,
-   phone number ID, název schválené šablony a její jazyk. Ukládá se to do
-   skriptu, ne do tabulky, takže to nikdo, kdo tabulku vidí, nepřečte.
+Postup, jak získat tři údaje, které skript potřebuje: **token**,
+**phone number ID** a **název schválené šablony**.
+
+1. **Meta Business Suite** – <https://business.facebook.com> – založte firemní
+   účet (nebo použijte stávající).
+2. **Meta for Developers** – <https://developers.facebook.com/apps> →
+   **Vytvořit aplikaci** → typ **Business** → přidat produkt **WhatsApp**.
+3. V sekci **WhatsApp → API Setup** uvidíte hned zkušební prostředí:
+   - dočasný token (platí 24 hodin),
+   - testovací číslo od Mety a jeho **Phone number ID**,
+   - seznam **příjemců**, kam si přidáte až 5 čísel.
+
+   **Tohle stačí na první test ještě dnes** – bez ověřování firmy. Přidejte si
+   svoje soukromé číslo jako příjemce, vyplňte údaje do dialogu a dejte
+   *Odeslat test*.
+4. **Vlastní číslo:** *Add phone number* → zadejte to druhé číslo → ověřovací
+   kód přijde SMS nebo hovorem. Číslo tím přestane fungovat v běžné aplikaci
+   WhatsApp, proto to nesmí být vaše osobní. Vznikne nové **Phone number ID** –
+   to pak patří do dialogu.
+5. **Ověření firmy** (*Business Verification* v Business Suite) – bez něj
+   můžete psát jen na 5 testovacích čísel a jen omezený počet zpráv denně.
+   Chce to doklad o existenci firmy (výpis z rejstříku, faktura za služby)
+   a trvá to řádově dny.
+6. **Trvalý token:** Business Suite → **Nastavení firmy → Uživatelé systému** →
+   vytvořit systémového uživatele, přiřadit mu aplikaci a vygenerovat token
+   s oprávněními `whatsapp_business_messaging` a `whatsapp_business_management`.
+   Bez tohohle kroku vám odesílání za 24 hodin přestane fungovat.
+
+#### Šablona zprávy
+
+**WhatsApp Manager → Nástroje pro zprávy → Šablony zpráv → Vytvořit šablonu**.
+Kategorie **Utility** (navazujete na hovor), jazyk **čeština**. Text například:
+
+```
+Dobrý den {{1}}, děkuji za dnešní telefonát. Posílám shrnutí toho,
+na čem jsme se domluvili, kdyby cokoliv, klidně mi napište sem.
+```
+
+Meta u schvalování vyžaduje ukázkovou hodnotu pro každou proměnnou (např.
+`Jan`). Šablona nesmí být tvořená jen proměnnými a nesmí slibovat něco, co
+neplatí. Schválení bývá do pár hodin, zamítnutí přijde s důvodem a dá se
+opravit a poslat znovu.
+
+Až bude šablona schválená, doplňte v dialogu její **název** (ne text!), jazyk
+`cs` a do **Proměnných šablony** napište, co se má do `{{1}}` doplnit –
+výchozí `firstName` vezme křestní jméno ze sloupce Jméno. Víc proměnných
+oddělte čárkou v pořadí, v jakém jsou v šabloně, např. `firstName, note`.
+
+### 4. Tlačítka u řádků
+
+1. **WhatsApp → Automatické odesílání – nastavení** a vyplňte token,
+   phone number ID, název šablony, jazyk a proměnné. Ukládá se to do skriptu,
+   ne do tabulky, takže to nikdo, kdo tabulku vidí, nepřečte.
    Tlačítkem **Odeslat test** ověříte, že to chodí.
 2. **WhatsApp → Vytvořit tlačítka Odeslat** – přidá sloupec `Odeslat`
    se zaškrtávátky a nainstaluje spouštěč.
@@ -96,12 +146,10 @@ aplikaci.
    `WhatsApp odesláno` se zapíše čas (nebo důvod chyby) a zaškrtávátko se zase
    samo vypne, aby šlo poslat znovu.
 
-Které údaje z řádku doplní `{{1}}`, `{{2}}` v šabloně, se nastavuje v
-`AUTO_SEND.templateParameterFields` v `CloudApi.gs` (výchozí: křestní jméno).
-Když chcete odesílat změnou sloupce `Stav` místo zaškrtávátka, přepněte tam
-`useStatusTrigger` na `true`.
+Když chcete odesílat změnou sloupce `Stav` místo zaškrtávátka, přepněte
+`useStatusTrigger` na `true` v `CloudApi.gs`.
 
-### 4. Kontakty z inzerátu
+### 5. Kontakty z inzerátu (volitelné)
 
 `Webhook.gs` udělá z tabulky adresu, na kterou může formulář posílat nové
 kontakty – ty pak naskakují jako nové řádky.
@@ -133,7 +181,8 @@ Podle toho, kde inzerujete:
 | „Nenašla jsem sloupec s telefonem“ | **WhatsApp → Nastavit sloupce**. |
 | Ve sloupci odesláno `CHYBA: nenastavené API` | Chybí token nebo phone number ID. |
 | `CHYBA: 131030` nebo „not in allowed list“ | Testovací režim Mety umí psát jen na čísla, která si přidáte do seznamu příjemců. |
-| `CHYBA: 132001` | Šablona s tímhle názvem nebo jazykem neexistuje / není schválená. |
+| `CHYBA: 132001` | Šablona s tímhle názvem nebo jazykem neexistuje / není schválená. Do dialogu patří **název** šablony, ne její text. |
+| `CHYBA: 132000` | Počet proměnných nesedí – v poli *Proměnné šablony* musí být tolik hodnot, kolik má šablona `{{1}}`, `{{2}}`, … |
 | `CHYBA: 401` nebo `190` | Vypršel token. Dočasný token z dashboardu platí 24 hodin – použijte trvalý token systémového uživatele. |
 | Zaškrtnutí nic neudělá | Spusťte **Vytvořit tlačítka Odeslat** znovu, nainstaluje spouštěč. |
 | Z inzerátu nic nepřichází | Klíč v adrese, nasazení jako *kdokoli*, a formulář musí posílat telefonní číslo. |

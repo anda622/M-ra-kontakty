@@ -23,8 +23,8 @@ const AUTO_SEND = {
   // the checkbox is the button; set to true if you prefer the status column.
   useStatusTrigger: false,
   triggerStatus: 'zavoláno',
-  // Which contact fields fill {{1}}, {{2}}, ... in the approved template.
-  // 'firstName' | 'name' | 'note' | 'status' | 'phone'
+  // Fallback for which contact fields fill {{1}}, {{2}}, ... in the approved
+  // template. Normally set in the settings dialog instead of here.
   templateParameterFields: ['firstName'],
 };
 
@@ -90,7 +90,23 @@ function getApiSettings() {
     phoneNumberId: properties.getProperty('WHATSAPP_PHONE_NUMBER_ID') || '',
     templateName: properties.getProperty('WHATSAPP_TEMPLATE_NAME') || '',
     templateLang: properties.getProperty('WHATSAPP_TEMPLATE_LANG') || 'cs',
+    templateParameters: templateParameterFields_().join(', '),
   };
+}
+
+/**
+ * Which contact fields fill {{1}}, {{2}}, ... in the template, in order.
+ * Allowed: firstName, name, phone, note, status.
+ */
+function templateParameterFields_() {
+  const stored = PropertiesService.getScriptProperties().getProperty('WHATSAPP_TEMPLATE_PARAMS');
+  // null = never configured (use the fallback); '' = deliberately no variables.
+  if (stored === null) return AUTO_SEND.templateParameterFields;
+  const fields = stored
+    .split(',')
+    .map(function (field) { return field.trim(); })
+    .filter(Boolean);
+  return fields.length ? fields : [];
 }
 
 /** Stores the settings. An empty token means "keep the existing one". */
@@ -100,6 +116,7 @@ function saveApiSettings(settings) {
   properties.setProperty('WHATSAPP_PHONE_NUMBER_ID', String(settings.phoneNumberId || '').trim());
   properties.setProperty('WHATSAPP_TEMPLATE_NAME', String(settings.templateName || '').trim());
   properties.setProperty('WHATSAPP_TEMPLATE_LANG', String(settings.templateLang || 'cs').trim());
+  properties.setProperty('WHATSAPP_TEMPLATE_PARAMS', String(settings.templateParameters || '').trim());
   return getApiSettings();
 }
 
@@ -109,11 +126,18 @@ function clearApiToken() {
   return getApiSettings();
 }
 
-/** Sends one template message to a number typed in the dialog. */
-function sendTestMessage(phone, parameterValue) {
+/**
+ * Sends one template message to a number typed in the dialog, with a
+ * placeholder for every variable the template is configured to use.
+ */
+function sendTestMessage(phone) {
   const digits = normalizePhone_(phone);
   if (digits.length < 9) throw new Error('Neplatné telefonní číslo.');
-  sendTemplateMessage_(digits, [parameterValue || 'Test']);
+  const samples = { firstName: 'Jan', name: 'Jan Novák', note: 'zkušební zpráva', status: 'test' };
+  const parameters = templateParameterFields_().map(function (field) {
+    return samples[field] || 'test';
+  });
+  sendTemplateMessage_(digits, parameters);
   return 'Odesláno na +' + digits + '. Zkontrolujte telefon příjemce.';
 }
 
@@ -184,7 +208,7 @@ function sendRow_(sheet, row, columns) {
     status: cell(columns.status),
     phone: phone,
   };
-  const parameters = AUTO_SEND.templateParameterFields.map(function (field) {
+  const parameters = templateParameterFields_().map(function (field) {
     return contact[field] || '';
   });
 
