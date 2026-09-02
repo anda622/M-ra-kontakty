@@ -17,6 +17,8 @@ const CONFIG = {
   headerRow: 1,
   // Column the script writes the "sent at" timestamp into. Created if missing.
   sentColumnHeader: 'WhatsApp odesláno',
+  // Checkbox column that acts as a per-row send button (used by CloudApi.gs).
+  sendColumnHeader: 'Odeslat',
 };
 
 // Header names recognised automatically, in Czech and English. Diacritics and
@@ -56,16 +58,30 @@ const FIELD_LABELS = {
   note: 'Poznámka',
   status: 'Stav',
   sent: 'Odesláno',
+  send: 'Odeslat (tlačítko)',
 };
 
 /** Adds the custom menu when the spreadsheet is opened. */
 function onOpen() {
-  SpreadsheetApp.getUi()
+  const menu = SpreadsheetApp.getUi()
     .createMenu('WhatsApp')
     .addItem('Otevřít panel', 'showSidebar')
     .addSeparator()
-    .addItem('Nastavit sloupce', 'showColumnPicker')
-    .addToUi();
+    .addItem('Nastavit sloupce', 'showColumnPicker');
+
+  // The automatic sending (CloudApi.gs) is optional - only offer it when that
+  // file has actually been added to the project.
+  if (typeof showApiSettings === 'function') {
+    menu.addItem('Automatické odesílání – nastavení', 'showApiSettings');
+    menu.addItem('Vytvořit tlačítka Odeslat', 'setupSendButtons');
+  }
+
+  // The lead webhook (Webhook.gs) is optional in the same way.
+  if (typeof showWebhookInfo === 'function') {
+    menu.addSeparator().addItem('Webhook pro inzerát', 'showWebhookInfo');
+  }
+
+  menu.addToUi();
 }
 
 /** Opens the side panel. */
@@ -229,8 +245,9 @@ function renderTemplate(body, contact) {
 function findColumns_(sheet) {
   const width = Math.max(sheet.getLastColumn(), 1);
   const headers = sheet.getRange(CONFIG.headerRow, 1, 1, width).getDisplayValues()[0];
-  const found = { name: 0, phone: 0, note: 0, status: 0, sent: 0 };
+  const found = { name: 0, phone: 0, note: 0, status: 0, sent: 0, send: 0 };
   const sentKey = simplify_(CONFIG.sentColumnHeader);
+  const sendKey = simplify_(CONFIG.sendColumnHeader);
 
   const saved = readSavedMap_(sheet);
   Object.keys(found).forEach(function (field) {
@@ -243,6 +260,10 @@ function findColumns_(sheet) {
     if (!key) return;
     if (key === sentKey) {
       found.sent = found.sent || index + 1;
+      return;
+    }
+    if (key === sendKey) {
+      found.send = found.send || index + 1;
       return;
     }
     Object.keys(COLUMN_ALIASES).forEach(function (field) {

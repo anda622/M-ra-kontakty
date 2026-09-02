@@ -1,102 +1,146 @@
 # WhatsApp follow-up po telefonátu
 
-Skript pro Google Sheets: po hovoru kliknete na řádek kontaktu, vyberete šablonu
-a otevře se WhatsApp s už napsanou zprávou pro dané číslo. Vy jen zkontrolujete
-text a dáte Odeslat. Do tabulky se zapíše čas odeslání.
+Řetězec, o který jde:
+
+```
+inzerát (formulář)  →  Google Sheets  →  tlačítko u řádku  →  WhatsApp zpráva
+     Webhook.gs         tahle tabulka      CloudApi.gs        z jednoho čísla
+```
 
 Tabulka: <https://docs.google.com/spreadsheets/d/1vW3h5mdPgMT1eUcgI4u66yW4Ry-KSaR64SuwPxuXriY/edit>
 
-Zdarma, bez API klíčů, bez účtu u Mety, píše se z vašeho běžného čísla.
-(Ostatní varianty včetně plně automatického odesílání jsou popsané níže.)
+Skript umí dva režimy odesílání. Dají se používat vedle sebe:
 
-## Instalace (asi 10 minut)
+- **Panel (zdarma, hned).** Kliknete na řádek, v postranním panelu vyberete
+  šablonu a otevře se WhatsApp s předvyplněnou zprávou – odeslání potvrdíte vy.
+  Soubory `Code.gs`, `Sidebar.html`, `Columns.html`.
+- **Tlačítko u řádku (plně automatické).** Ve sloupci `Odeslat` je u každého
+  kontaktu zaškrtávátko. Zaškrtnete → zpráva odejde sama, z jednoho firemního
+  čísla, WhatsApp se vůbec neotevře. Soubory `CloudApi.gs`, `Api.html`.
+  **Vyžaduje účet u Mety a samostatné telefonní číslo – viz níže.**
 
-1. V tabulce otevřete **Rozšíření → Apps Script**.
-2. Vytvořte tři soubory a vložte do nich obsah ze složky `apps-script/`:
-   - stávající `Kód.gs` (nebo `Code.gs`) přepište obsahem **`Code.gs`**
-   - **+ → HTML**, název `Sidebar` → obsah **`Sidebar.html`**
-   - **+ → HTML**, název `Columns` → obsah **`Columns.html`**
+## Co musí být splněné pro tlačítko
 
-   Názvy souborů musí sedět přesně (`Sidebar`, `Columns`), skript je podle nich
-   hledá. Příponu `.html` Apps Script doplní sám.
-3. Uložte (ikona diskety) a tabulku načtěte znovu (F5). V menu přibude
-   **WhatsApp**.
-4. **WhatsApp → Nastavit sloupce.** Skript se pokusí sloupce najít sám podle
-   názvů hlaviček; v dialogu uvidíte, co našel, a můžete to přepsat ručně.
-   Povinný je jen **Telefon**, jméno a poznámka jsou volitelné.
-5. **WhatsApp → Otevřít panel** a můžete začít.
+Tohle není volba skriptu, tak to má nastavené WhatsApp. Automaticky odesílat
+zprávy smí jen oficiální **WhatsApp Business Cloud API**:
 
-### Při prvním spuštění
+1. **Samostatné telefonní číslo.** Číslo napojené na API už nejde používat
+   v běžné aplikaci WhatsApp. Nemůže to tedy být vaše číslo, ze kterého píšete
+   ručně – potřebujete druhé (stačí levná SIM nebo pevná linka, musí jen umět
+   přijmout ověřovací kód).
+2. **Meta Business účet + ověření firmy.** Ověření trvá řádově dny.
+3. **Schválená šablona zprávy.** Zprávu, kterou začínáte vy, nelze poslat jako
+   volný text – musí to být šablona předem schválená Metou, s proměnnými typu
+   `{{1}}` pro jméno. Schvalování bývá do pár hodin.
+4. **Platba za zprávu.** Ceník: <https://developers.facebook.com/docs/whatsapp/pricing>.
 
-Google se zeptá na oprávnění. Protože je skript váš vlastní a není ověřený
-Googlem, projděte: **Rozšířené → Přejít na (název projektu)** → **Povolit**.
-Skript vidí jen tuhle tabulku a otevírá odkazy, nikam nic neposílá.
+Volný text můžete poslat jen do 24 hodin od chvíle, kdy vám člověk napsal.
+Po hovoru, který jste iniciovala vy, to okno otevřené není → šablona.
 
-## Jak se to používá
+> **Tip k inzerátu:** pokud teprve chystáte kampaň, zvažte reklamu typu
+> **Click to WhatsApp**. Člověk z inzerátu napíše prvně on, čímž se otevře
+> 24hodinové okno – pak můžete posílat běžný text bez schvalování šablon.
 
-1. Zavoláte kontaktu.
-2. Kliknete na jeho řádek v tabulce – panel vpravo se sám přepne na ten řádek.
-3. Vyberete šablonu, doplníte, co jste si domluvily.
-4. **Otevřít WhatsApp** → otevře se nová karta s předvyplněnou zprávou →
-   **Odeslat**. Do sloupce `WhatsApp odesláno` se zapíše čas.
+**Čemu se vyhnout:** služby a knihovny, které „automatizují běžný WhatsApp“
+(whatsapp-web.js, Baileys, různá levná „WhatsApp API“). Porušují podmínky
+WhatsAppu a vaše číslo může skončit zablokované.
 
-Přepínač **Otevírat v** dole v panelu:
+## Instalace
 
-- **WhatsApp Web** – otevře přímo `web.whatsapp.com` (musíte mít v prohlížeči
-  přihlášený WhatsApp Web, tj. jednou naskenovat QR kód v telefonu). O jedno
-  kliknutí méně.
-- **aplikace (wa.me)** – univerzální odkaz, který předá zprávu desktopové nebo
-  mobilní aplikaci WhatsApp. Zobrazí mezikrok „Pokračovat do chatu“.
+V tabulce **Rozšíření → Apps Script**, pak vytvořte soubory podle toho, co
+chcete používat. Názvy HTML souborů musí sedět přesně – skript je podle nich
+hledá.
 
-## Co skript očekává od tabulky
+| Soubor | V editoru | K čemu |
+|---|---|---|
+| `Code.gs` | přepsat stávající `Kód.gs` | základ, menu, panel – **povinné** |
+| `Sidebar.html` | + → HTML, název `Sidebar` | panel s předvyplněnou zprávou |
+| `Columns.html` | + → HTML, název `Columns` | výběr sloupců |
+| `CloudApi.gs` | + → Skript, název `CloudApi` | tlačítka a automatické odesílání |
+| `Api.html` | + → HTML, název `Api` | zadání přístupových údajů k API |
+| `Webhook.gs` | + → Skript, název `Webhook` | příjem kontaktů z inzerátu |
 
-Hlavičky v prvním řádku a sloupec s telefonním číslem. Běžné názvy rozpozná sám
-(`Jméno`, `Telefon`, `Mobil`, `Poznámka`, `Stav` i anglické varianty; na
-diakritice a velikosti písmen nezáleží). Cokoliv jiného doladíte v dialogu
-**Nastavit sloupce** – nastavení se pamatuje zvlášť pro každý list.
+Uložte, tabulku načtěte znovu (F5) – v menu přibude **WhatsApp**. Při prvním
+spuštění Google požádá o oprávnění: **Rozšířené → Přejít na (název projektu) →
+Povolit**.
 
-Sloupec `WhatsApp odesláno` si skript vytvoří sám na konci tabulky, pokud tam
-ještě není. Do ničeho jiného nezapisuje.
+### 1. Sloupce
 
-Telefonní čísla si srovná sám: `+420 777 123 456`, `00420777123456`
-i `777 123 456` skončí jako `420777123456`. Čísla bez předvolby bere jako česká,
-jiná země se nastaví v `CONFIG.defaultCountryCode` v `Code.gs`.
+**WhatsApp → Nastavit sloupce.** Skript se je pokusí najít sám podle hlaviček
+(`Jméno`, `Telefon`, `Mobil`, `Poznámka`, `Stav` i anglicky, na diakritice
+nezáleží), v dialogu to můžete přepsat. Povinný je jen **Telefon**.
 
-## Šablony zpráv
+Čísla si skript srovná sám: `+420 777 123 456`, `00420777123456` i
+`777 123 456` skončí jako `420777123456`. Čísla bez předvolby bere jako česká
+(`CONFIG.defaultCountryCode` v `Code.gs`).
 
-Jsou v `Code.gs` v poli `TEMPLATES`. Přepište je podle sebe, přidat můžete
-libovolný počet. V textu fungují zástupné značky `{jmeno}` (křestní jméno),
-`{poznamka}` a `{datum}`. Po úpravě soubor uložte a tabulku načtěte znovu.
+### 2. Panel (zdarma)
+
+**WhatsApp → Otevřít panel.** Klikněte na řádek kontaktu, vyberte šablonu,
+text upravte a dejte **Otevřít WhatsApp**. Šablony jsou v `Code.gs` v poli
+`TEMPLATES`, značky `{jmeno}`, `{poznamka}`, `{datum}`.
+
+Přepínač **Otevírat v**: *WhatsApp Web* jde rovnou do chatu (vyžaduje jednou
+naskenovat QR kód), *aplikace (wa.me)* předá zprávu desktopové nebo mobilní
+aplikaci.
+
+### 3. Tlačítka u řádků (automatické odesílání)
+
+1. **WhatsApp → Automatické odesílání – nastavení** a vyplňte přístupový token,
+   phone number ID, název schválené šablony a její jazyk. Ukládá se to do
+   skriptu, ne do tabulky, takže to nikdo, kdo tabulku vidí, nepřečte.
+   Tlačítkem **Odeslat test** ověříte, že to chodí.
+2. **WhatsApp → Vytvořit tlačítka Odeslat** – přidá sloupec `Odeslat`
+   se zaškrtávátky a nainstaluje spouštěč.
+3. Po hovoru zaškrtnete políčko u kontaktu. Zpráva odejde, do sloupce
+   `WhatsApp odesláno` se zapíše čas (nebo důvod chyby) a zaškrtávátko se zase
+   samo vypne, aby šlo poslat znovu.
+
+Které údaje z řádku doplní `{{1}}`, `{{2}}` v šabloně, se nastavuje v
+`AUTO_SEND.templateParameterFields` v `CloudApi.gs` (výchozí: křestní jméno).
+Když chcete odesílat změnou sloupce `Stav` místo zaškrtávátka, přepněte tam
+`useStatusTrigger` na `true`.
+
+### 4. Kontakty z inzerátu
+
+`Webhook.gs` udělá z tabulky adresu, na kterou může formulář posílat nové
+kontakty – ty pak naskakují jako nové řádky.
+
+1. **WhatsApp → Webhook pro inzerát** – zobrazí klíč.
+2. V editoru skriptu **Nasadit → Nové nasazení → Webová aplikace**,
+   *Spustit jako: já*, *Kdo má přístup: kdokoli*.
+3. Vzniklou adresu (končí `/exec`) vložte do inzerátu jako webhook a připojte
+   klíč: `...exec?key=VÁŠ_KLÍČ`.
+
+Přijímá JSON i běžný formulář, pole `name` / `phone` / `note` (nebo `jmeno`,
+`telefon`, `poznamka`, nebo přesné názvy sloupců tabulky) a nativní formát
+formulářů Google Ads. Stejné číslo podruhé nezaloží.
+
+Podle toho, kde inzerujete:
+
+| Kde | Jak se to spojí |
+|---|---|
+| **Google Ads** (formulářové rozšíření) | Webhook přímo, adresa a klíč z bodů výše. Nic dalšího netřeba. |
+| **Facebook / Instagram lead ads** | Meta neumí posílat přímo do tabulky. Potřebujete mezičlánek – Zapier, Make nebo n8n (trigger *Facebook Lead Ads* → tenhle webhook nebo rovnou řádek v tabulce). |
+| **Vlastní web / landing page** | Formulář posílá POST na tuhle adresu. |
+| **Google Forms** | Nejjednodušší – formulář zapisuje do tabulky sám, `Webhook.gs` není potřeba. |
 
 ## Kdyby něco nefungovalo
 
 | Co vidíte | Co s tím |
 |---|---|
-| V menu není **WhatsApp** | Načtěte tabulku znovu (F5); menu se přidává až při otevření tabulky. |
-| „Nenašla jsem sloupec s telefonem“ | **WhatsApp → Nastavit sloupce** a vyberte sloupec ručně. |
-| „Neplatné číslo“ | Číslo v buňce je kratší než 9 číslic nebo obsahuje text (třeba dvě čísla v jedné buňce). |
-| Otevře se WhatsApp Web s QR kódem | Naskenujte ho v telefonu (WhatsApp → Nastavení → Propojená zařízení). |
-| Zpráva se otevře prázdná | Číslo nemá WhatsApp, nebo prohlížeč zablokoval vyskakovací okno. |
-| Panel ukazoval starý řádek | Panel se obnovuje po dvou sekundách, nebo klikněte na **Načíst vybraný řádek**. |
-
-## Ostatní varianty (pro pozdější rozmyšlenou)
-
-| | Jak to funguje | Klikání | Cena | Nároky na nastavení |
-|---|---|---|---|---|
-| **A. Click-to-chat** (tenhle skript) | Předvyplněná zpráva, odesíláte vy | 2 kliknutí | zdarma | 10 minut |
-| **B. WhatsApp Business Cloud API** (Meta) | Skript zprávu odešle sám | 0 | platí se za zprávu | Meta Business účet, ověření firmy, **samostatné telefonní číslo**, schválené šablony |
-| **C. Poskytovatel** (Twilio, 360dialog…) | Totéž co B, registraci vyřídí za vás | 0 | cena Mety + marže | jednodušší než B, pořád samostatné číslo |
-| **D. Zapier / Make / n8n** | Hotový konektor, bez programování | 0 | předplatné + zprávy | pořád potřebuje účet u B nebo C |
-| **E. Neoficiální knihovny** | Automatizují osobní WhatsApp | 0 | zdarma | **porušuje podmínky WhatsAppu, hrozí zablokování čísla – nedoporučuji** |
-
-Kód pro variantu B je připravený v `apps-script/CloudApi.gs`. Nedělá nic, dokud
-mu nedoplníte přístupové údaje – nemusíte ho vůbec kopírovat do projektu.
-Hlavní háček: číslo napojené na Cloud API **už nejde používat v běžné aplikaci
-WhatsApp**, potřebovala byste tedy druhé číslo.
+| V menu není **WhatsApp** | Načtěte tabulku znovu (F5). |
+| „Nenašla jsem sloupec s telefonem“ | **WhatsApp → Nastavit sloupce**. |
+| Ve sloupci odesláno `CHYBA: nenastavené API` | Chybí token nebo phone number ID. |
+| `CHYBA: 131030` nebo „not in allowed list“ | Testovací režim Mety umí psát jen na čísla, která si přidáte do seznamu příjemců. |
+| `CHYBA: 132001` | Šablona s tímhle názvem nebo jazykem neexistuje / není schválená. |
+| `CHYBA: 401` nebo `190` | Vypršel token. Dočasný token z dashboardu platí 24 hodin – použijte trvalý token systémového uživatele. |
+| Zaškrtnutí nic neudělá | Spusťte **Vytvořit tlačítka Odeslat** znovu, nainstaluje spouštěč. |
+| Z inzerátu nic nepřichází | Klíč v adrese, nasazení jako *kdokoli*, a formulář musí posílat telefonní číslo. |
 
 ## Na co si dát pozor
 
-- **Souhlas a GDPR.** Navázat zprávou na hovor, který člověk čekal, je v pořádku.
-  Hromadné obchodní sdělení lidem, kteří o něj nepožádali, v pořádku není.
-- **Záloha.** Než skript pustíte na ostrá data, udělejte si kopii tabulky
-  (**Soubor → Vytvořit kopii**).
+- **Souhlas a GDPR.** Člověk, který sám vyplnil formulář a čeká, že se ozvete,
+  je v pořádku. Zprávy lidem, kteří o ně nepožádali, ne – a Meta blokuje účty,
+  na které chodí stížnosti.
+- **Záloha.** Než skript pustíte na ostrá data, **Soubor → Vytvořit kopii**.

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Roboto, Arial, sans-serif; font-size: 13px; color: #202124; margin: 16px; }
+      p.intro { margin: 0 0 14px; color: #5f6368; }
+      label { display: block; font-weight: 500; margin: 12px 0 4px; }
+      input { width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; font-size: 13px; }
+      .hint { color: #5f6368; font-size: 12px; margin-top: 3px; }
+      .buttons { margin-top: 18px; display: flex; gap: 8px; }
+      button { padding: 8px 14px; border-radius: 4px; border: 1px solid #dadce0; background: #fff; cursor: pointer; font-size: 13px; }
+      button.primary { background: #1a73e8; border-color: #1a73e8; color: #fff; font-weight: 500; }
+      #status { margin-top: 12px; min-height: 16px; }
+      .ok { color: #188038; }
+      .warn { color: #c5221f; }
+      hr { border: none; border-top: 1px solid #e0e0e0; margin: 18px 0 4px; }
+      .test { display: flex; gap: 8px; align-items: flex-end; }
+      .test div { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <p class="intro">
+      Údaje z Meta pro vývojáře → vaše WhatsApp aplikace. Ukládají se do tohoto
+      skriptu, ne do tabulky, takže je nikdo, kdo tabulku vidí, nepřečte.
+    </p>
+
+    <label for="token">Přístupový token</label>
+    <input id="token" type="password" placeholder="(uložený – vyplňte jen při změně)" autocomplete="off">
+    <div class="hint">Použijte trvalý token systémového uživatele. Dočasný token z dashboardu platí 24 hodin.</div>
+
+    <label for="phoneNumberId">Phone number ID</label>
+    <input id="phoneNumberId" placeholder="např. 123456789012345">
+    <div class="hint">Číselné ID odesílajícího čísla, ne samotné telefonní číslo.</div>
+
+    <label for="templateName">Název schválené šablony</label>
+    <input id="templateName" placeholder="např. po_hovoru">
+
+    <label for="templateLang">Jazyk šablony</label>
+    <input id="templateLang" placeholder="cs">
+
+    <div class="buttons">
+      <button class="primary" id="save">Uložit</button>
+      <button id="clear">Smazat token</button>
+    </div>
+    <div id="status"></div>
+
+    <hr>
+    <label for="testPhone">Zkušební odeslání</label>
+    <div class="test">
+      <div><input id="testPhone" placeholder="+420 777 123 456"></div>
+      <button id="test">Odeslat test</button>
+    </div>
+    <div class="hint">Pošle šablonu na zadané číslo. Nejdřív uložte nastavení.</div>
+
+    <script>
+      function el(id) { return document.getElementById(id); }
+
+      function render(settings) {
+        el('phoneNumberId').value = settings.phoneNumberId;
+        el('templateName').value = settings.templateName;
+        el('templateLang').value = settings.templateLang;
+        el('token').placeholder = settings.hasToken
+          ? '(uložený – vyplňte jen při změně)'
+          : 'zatím nevyplněno';
+        el('token').value = '';
+      }
+
+      function message(text, isError) {
+        el('status').innerHTML = '<span class="' + (isError ? 'warn' : 'ok') + '">' + text + '</span>';
+      }
+
+      el('save').addEventListener('click', function () {
+        google.script.run
+          .withSuccessHandler(function (settings) {
+            render(settings);
+            message('Uloženo.');
+          })
+          .withFailureHandler(function (error) { message(error.message, true); })
+          .saveApiSettings({
+            token: el('token').value,
+            phoneNumberId: el('phoneNumberId').value,
+            templateName: el('templateName').value,
+            templateLang: el('templateLang').value
+          });
+      });
+
+      el('clear').addEventListener('click', function () {
+        google.script.run.withSuccessHandler(function (settings) {
+          render(settings);
+          message('Token smazán.');
+        }).clearApiToken();
+      });
+
+      el('test').addEventListener('click', function () {
+        message('Odesílám…');
+        google.script.run
+          .withSuccessHandler(function (text) { message(text); })
+          .withFailureHandler(function (error) { message(error.message, true); })
+          .sendTestMessage(el('testPhone').value, 'Test');
+      });
+
+      google.script.run.withSuccessHandler(render).getApiSettings();
+    </script>
+  </body>
+</html>
