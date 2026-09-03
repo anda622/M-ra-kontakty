@@ -19,6 +19,12 @@ const CONFIG = {
   sentColumnHeader: 'WhatsApp odesláno',
   // Checkbox column that acts as a per-row send button (used by CloudApi.gs).
   sendColumnHeader: 'Odeslat',
+  // Clickable link in every row. Column I = 9, so columns A-H stay untouched.
+  linkColumnHeader: 'WhatsApp',
+  linkColumn: 9,
+  linkLabel: 'Napsat',
+  // Which entry of TEMPLATES the link in the column uses.
+  linkTemplateIndex: 0,
 };
 
 // Header names recognised automatically, in Czech and English. Diacritics and
@@ -59,6 +65,7 @@ const FIELD_LABELS = {
   status: 'Stav',
   sent: 'Odesláno',
   send: 'Odeslat (tlačítko)',
+  link: 'Odkaz WhatsApp',
 };
 
 /** Adds the custom menu when the spreadsheet is opened. */
@@ -66,6 +73,7 @@ function onOpen() {
   const menu = SpreadsheetApp.getUi()
     .createMenu('WhatsApp')
     .addItem('Otevřít panel', 'showSidebar')
+    .addItem('Vytvořit odkazy ve sloupci ' + columnLetter_(CONFIG.linkColumn), 'setupLinkColumn')
     .addSeparator()
     .addItem('Nastavit sloupce', 'showColumnPicker');
 
@@ -292,6 +300,124 @@ function renderTemplate(body, contact) {
     .replace(/\{datum\}/g, today);
 }
 
+// --- link column (I) --------------------------------------------------------
+
+/**
+ * Fills a whole column with a clickable "Napsat" link for every contact, so a
+ * row can be messaged without opening the panel at all. Columns A-H (or
+ * whatever comes before CONFIG.linkColumn) are never touched.
+ */
+function setupLinkColumn() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const columns = findColumns_(sheet);
+
+  if (!columns.phone) {
+    ui.alert('Nenašla jsem sloupec s telefonem. Otevřete nejdřív WhatsApp → Nastavit sloupce.');
+    return;
+  }
+
+  const column = columns.link || CONFIG.linkColumn;
+  if (sheet.getMaxColumns() < column) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), column - sheet.getMaxColumns());
+  }
+
+  // Never overwrite something that is already in that column.
+  if (!columns.link) {
+    const existing = sheet.getRange(CONFIG.headerRow, column).getDisplayValue().trim();
+    if (existing) {
+      ui.alert(
+        'Sloupec ' + columnLetter_(column) + ' už obsahuje "' + existing + '".\n\n' +
+          'Uvolněte ho, nebo v Code.gs změňte CONFIG.linkColumn na jiný sloupec.'
+      );
+      return;
+    }
+    sheet.getRange(CONFIG.headerRow, column).setValue(CONFIG.linkColumnHeader).setFontWeight('bold');
+  }
+
+  const written = refreshLinkColumn_(sheet);
+  sheet.setColumnWidth(column, 90);
+
+  ui.alert(
+    'Hotovo',
+    'Ve sloupci ' + columnLetter_(column) + ' je u ' + written + ' kontaktů odkaz "' +
+      CONFIG.linkLabel + '". Kliknutím se otevře WhatsApp s předepsanou zprávou ' +
+      '(šablona „' + TEMPLATES[CONFIG.linkTemplateIndex].name + '“).\n\n' +
+      'Odkaz se sám obnoví, kdykoliv v řádku změníte jméno, telefon nebo poznámku.',
+    ui.ButtonSet.OK
+  );
+}
+
+/** Rewrites the link for every data row. Returns how many were written. */
+function refreshLinkColumn_(sheet) {
+  const columns = findColumns_(sheet);
+  const lastRow = sheet.getLastRow();
+  let written = 0;
+  for (let row = CONFIG.headerRow + 1; row <= lastRow; row++) {
+    if (writeLinkForRow_(sheet, row, columns)) written++;
+  }
+  return written;
+}
+
+/**
+ * Writes one row's link. Returns true when a link was written, false when the
+ * row has no usable phone number (the cell is then left empty).
+ */
+function writeLinkForRow_(sheet, row, columns) {
+  const column = columns.link || CONFIG.linkColumn;
+  const cell = sheet.getRange(row, column);
+  const values = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+  const read = function (index) {
+    return index ? String(values[index - 1] || '').trim() : '';
+  };
+
+  const phone = normalizePhone_(read(columns.phone));
+  if (phone.length < 9) {
+    // Only clear a cell this script owns, never someone's data.
+    if (String(cell.getFormula() || '').indexOf('wa.me') !== -1 ||
+        String(cell.getFormula() || '').indexOf('whatsapp.com') !== -1) {
+      cell.clearContent();
+    }
+    return false;
+  }
+
+  const contact = {
+    name: read(columns.name),
+    firstName: firstName_(read(columns.name)),
+    note: read(columns.note),
+  };
+  const template = TEMPLATES[CONFIG.linkTemplateIndex] || TEMPLATES[0];
+  const url = buildLink(phone, renderTemplate(template.body, contact), linkTarget_());
+
+  // encodeURIComponent leaves no quotes in the url, so this is safe to inline.
+  cell.setFormula('=HYPERLINK("' + url + '","' + CONFIG.linkLabel + '")');
+  return true;
+}
+
+/** Whether links point at WhatsApp Web or hand over to the app. */
+function linkTarget_() {
+  return PropertiesService.getUserProperties().getProperty('linkTarget') === 'app' ? 'app' : 'web';
+}
+
+/**
+ * Keeps the links current: editing a name, phone or note rewrites that row's
+ * link. Programmatic edits do not fire this, so it cannot loop.
+ */
+function onEdit(e) {
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  const row = e.range.getRow();
+  if (row <= CONFIG.headerRow || e.range.getNumRows() !== 1) return;
+
+  const columns = findColumns_(sheet);
+  if (!columns.link || !columns.phone) return;
+
+  const edited = e.range.getColumn();
+  if (edited !== columns.phone && edited !== columns.name && edited !== columns.note) return;
+
+  writeLinkForRow_(sheet, row, columns);
+}
+
 // --- helpers ---------------------------------------------------------------
 
 /**
@@ -301,9 +427,10 @@ function renderTemplate(body, contact) {
 function findColumns_(sheet) {
   const width = Math.max(sheet.getLastColumn(), 1);
   const headers = sheet.getRange(CONFIG.headerRow, 1, 1, width).getDisplayValues()[0];
-  const found = { name: 0, phone: 0, note: 0, status: 0, sent: 0, send: 0 };
+  const found = { name: 0, phone: 0, note: 0, status: 0, sent: 0, send: 0, link: 0 };
   const sentKey = simplify_(CONFIG.sentColumnHeader);
   const sendKey = simplify_(CONFIG.sendColumnHeader);
+  const linkKey = simplify_(CONFIG.linkColumnHeader);
 
   const saved = readSavedMap_(sheet);
   Object.keys(found).forEach(function (field) {
@@ -320,6 +447,10 @@ function findColumns_(sheet) {
     }
     if (key === sendKey) {
       found.send = found.send || index + 1;
+      return;
+    }
+    if (key === linkKey) {
+      found.link = found.link || index + 1;
       return;
     }
     Object.keys(COLUMN_ALIASES).forEach(function (field) {

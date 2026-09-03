@@ -36,7 +36,24 @@ a velikosti písmen nezáleží); v dialogu to můžete přepsat. Povinný je je
 i `777 123 456` skončí jako `420777123456`. Čísla bez předvolby bere jako
 česká (`CONFIG.defaultCountryCode` v `Code.gs`).
 
-## Jak se to používá
+## Odkaz ve sloupci I
+
+Vaše data zůstanou v A–H beze změny. **WhatsApp → Vytvořit odkazy ve sloupci I**
+doplní do každého řádku odkaz **Napsat** – kliknutím se otevře WhatsApp s už
+napsanou zprávou pro to číslo.
+
+- Odkaz používá první šablonu z `TEMPLATES` (nastavuje se v
+  `CONFIG.linkTemplateIndex`). Když chcete jinou šablonu nebo text upravit,
+  použijte panel.
+- Když v řádku opravíte telefon, jméno nebo poznámku, odkaz se sám přepíše.
+  Po přidání nových řádků spusťte **Vytvořit odkazy** znovu.
+- Řádek bez použitelného čísla zůstane prázdný.
+- Jiný sloupec než I nastavíte v `CONFIG.linkColumn` (9 = I). Když už ve
+  sloupci něco je, skript to nepřepíše a upozorní vás.
+- **Kliknutí na odkaz skript nevidí**, takže se u něj nezapíše čas odeslání.
+  Čas zapisuje jen odeslání přes panel.
+
+## Jak se to používá přes panel
 
 **WhatsApp → Otevřít panel.**
 
@@ -49,8 +66,9 @@ i `777 123 456` skončí jako `420777123456`. Čísla bez předvolby bere jako
    **Odeslat**. Do sloupce `WhatsApp odesláno` se zapíše čas a ukazatel dole
    v panelu se posune.
 
-Sloupec `WhatsApp odesláno` si skript vytvoří sám na konci tabulky. Do ničeho
-jiného nezapisuje.
+Sloupec `WhatsApp odesláno` si skript vytvoří sám na konci tabulky (za sloupcem
+s odkazy, tedy obvykle J). Do ničeho jiného nezapisuje – sloupců A až H se
+nedotkne.
 
 Přepínač **Otevírat v**:
 
@@ -86,6 +104,8 @@ podmínky WhatsAppu a číslo může skončit zablokované.
 | Otevře se WhatsApp Web s QR kódem | Naskenujte ho v telefonu, WhatsApp → Nastavení → Propojená zařízení. |
 | Zpráva se otevře prázdná | Číslo nemá WhatsApp, nebo prohlížeč zablokoval vyskakovací okno. |
 | Panel ukazuje starý řádek | Obnovuje se po dvou sekundách, nebo dejte **Načíst vybraný řádek**. |
+| Odkaz ve sloupci I chybí u nového řádku | Spusťte **Vytvořit odkazy ve sloupci I** znovu. |
+| „Sloupec I už obsahuje…“ | Ve sloupci I máte data. Uvolněte ho, nebo změňte `CONFIG.linkColumn` v `Code.gs`. |
 | „Hotovo – všem kontaktům…“ | Všechny řádky s platným číslem už mají čas ve sloupci odesláno. |
 
 ## Na co si dát pozor
