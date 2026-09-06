@@ -21,7 +21,28 @@ souborů musí sedět přesně, skript je podle nich hledá.
 | `Sidebar.html` | **+ → HTML**, název `Sidebar` |
 | `Columns.html` | **+ → HTML**, název `Columns` |
 
-Uložte, tabulku načtěte znovu (F5) – v menu přibude **WhatsApp**. Při prvním
+Uložte, tabulku načtěte znovu (F5) – v menu přibude **WhatsApp**.
+
+### Když už v projektu nějaký skript je
+
+Nic nepřepisujte. Stávající `Kód.gs` nechte být a `Code.gs` vložte jako **nový
+soubor** (**+ → Skript**, například `WhatsApp`). Soubory v Apps Scriptu sdílí
+jeden prostor, takže spolu fungují.
+
+Skript nepoužívá žádný z běžných názvů, které mívá příjem dat z webu
+(`doPost`, `doGet`, `json`), takže ke kolizi nedojde. Kdyby přece jen měl
+projekt funkci se stejným názvem jako některá zdejší, Apps Script si vezme tu
+poslední – proto po vložení zkontrolujte, že se ta původní část pořád chová,
+jak má.
+
+Když do tabulky zapisuje nějaký `doPost` z webového formuláře, přidejte si za
+jeho `appendRow(...)` tenhle řádek, ať má nový lead odkaz hned:
+
+```js
+try { writeLinkForRow_(sheet, sheet.getLastRow(), findColumns_(sheet)); } catch (linkError) {}
+```
+
+Je schválně v `try`, aby případná chyba v odkazu nikdy neshodila příjem leadů. Při prvním
 spuštění Google požádá o oprávnění: **Rozšířené → Přejít na (název projektu) →
 Povolit**. Skript vidí jen tuhle tabulku a otevírá odkazy, nikam nic neposílá.
 
