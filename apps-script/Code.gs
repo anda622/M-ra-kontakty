@@ -100,6 +100,10 @@ function onOpen() {
   }
 
   menu.addToUi();
+
+  // Open the panel straight away, so clicking a row is all it takes: the panel
+  // follows the selection and its button goes to the app without a browser.
+  showSidebar();
 }
 
 /** Opens the side panel. */
