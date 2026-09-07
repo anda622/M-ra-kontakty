@@ -283,7 +283,14 @@ function buildLink(phone, message, target) {
   const digits = normalizePhone_(phone);
   const text = encodeURIComponent(message);
   if (target === 'macapp') return 'whatsapp://send?phone=' + digits + '&text=' + text;
-  if (target === 'app') return 'https://wa.me/' + digits + '?text=' + text;
+  // app_absent=0 tells WhatsApp's own page that the desktop app is installed,
+  // so it hands over on its own instead of waiting for a "Continue to chat"
+  // click. The page still loads for a moment - a spreadsheet cell cannot skip
+  // the browser, it only accepts http/https links.
+  if (target === 'app') {
+    return 'https://api.whatsapp.com/send/?phone=' + digits + '&text=' + text +
+      '&type=phone_number&app_absent=0';
+  }
   return 'https://web.whatsapp.com/send?phone=' + digits + '&text=' + text;
 }
 
