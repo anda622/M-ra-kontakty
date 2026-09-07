@@ -23,8 +23,13 @@ const CONFIG = {
   linkColumnHeader: 'WhatsApp',
   linkColumn: 9,
   linkLabel: 'Napsat',
-  // Colour of the link text in the column.
+  // Colour of the "Napsat" text in the column.
   linkColor: '#1FA855',
+  // true  - the cell is plain text and clicking it opens the side panel, from
+  //         which WhatsApp starts without a browser in the way.
+  // false - the cell is a link straight to WhatsApp (which always goes through
+  //         a browser page, because a cell only accepts http/https links).
+  linkOpensPanel: true,
   // Where the link in the column opens:
   //   'app' - wa.me, which hands over to the desktop app after one click
   //   'web' - web.whatsapp.com in the browser
@@ -384,10 +389,11 @@ function setupLinkColumn() {
 
   ui.alert(
     'Hotovo',
-    'Ve sloupci ' + columnLetter_(column) + ' je u ' + written + ' kontaktů odkaz "' +
-      CONFIG.linkLabel + '". Kliknutím se otevře WhatsApp s předepsanou zprávou ' +
-      '(šablona „' + TEMPLATES[CONFIG.linkTemplateIndex].name + '“).\n\n' +
-      'Odkaz se sám obnoví, kdykoliv v řádku změníte jméno, telefon nebo poznámku.',
+    'Ve sloupci ' + columnLetter_(column) + ' je u ' + written + ' kontaktů "' +
+      CONFIG.linkLabel + '".\n\n' +
+      (CONFIG.linkOpensPanel
+        ? 'Kliknutím na něj se otevře panel a z něj spustíte WhatsApp.'
+        : 'Kliknutím se otevře WhatsApp s předepsanou zprávou.'),
     ui.ButtonSet.OK
   );
 }
@@ -427,13 +433,23 @@ function writeLinkForRow_(sheet, row, columns) {
     firstName: firstName_(read(columns.name)),
     note: read(columns.note),
   };
+  if (CONFIG.linkOpensPanel) {
+    // No link at all: clicking the cell opens the panel (see onSelectionChange)
+    // and WhatsApp starts from there, so no browser page is ever involved.
+    cell
+      .setValue(CONFIG.linkLabel)
+      .setFontColor(CONFIG.linkColor)
+      .setFontWeight('bold')
+      .setHorizontalAlignment('center');
+    return true;
+  }
+
   const template = TEMPLATES[CONFIG.linkTemplateIndex] || TEMPLATES[0];
   const url = buildLink(phone, renderTemplate(template.body, contact), CONFIG.linkColumnTarget);
 
   // A rich text link rather than =HYPERLINK(): Apps Script writes formulas with
   // comma separators, which a spreadsheet whose locale separates arguments with
-  // semicolons (Czech among them) rejects with #ERROR!. Setting the style here
-  // too keeps the link in the WhatsApp green rather than the default link blue.
+  // semicolons (Czech among them) rejects with #ERROR!.
   cell.setRichTextValue(
     SpreadsheetApp.newRichTextValue()
       .setText(CONFIG.linkLabel)
@@ -448,6 +464,7 @@ function writeLinkForRow_(sheet, row, columns) {
 
 /** True when the cell holds a WhatsApp link this script wrote. */
 function ownsCell_(cell) {
+  if (String(cell.getDisplayValue() || '').trim() === CONFIG.linkLabel) return true;
   const formula = String(cell.getFormula() || '');
   if (formula.indexOf('wa.me') !== -1 || formula.indexOf('whatsapp.com') !== -1) return true;
   const rich = cell.getRichTextValue();
@@ -459,6 +476,26 @@ function ownsCell_(cell) {
 function linkTarget_() {
   const stored = PropertiesService.getUserProperties().getProperty('linkTarget');
   return ['web', 'app', 'macapp'].indexOf(stored) !== -1 ? stored : 'macapp';
+}
+
+/**
+ * Clicking "Napsat" opens the panel for that row. Sheets has no click event,
+ * but selecting the cell is close enough - and it is the only way to get from
+ * the sheet into WhatsApp without a browser page on the way.
+ */
+function onSelectionChange(e) {
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  const row = e.range.getRow();
+  if (row <= CONFIG.headerRow) return;
+  if (e.range.getNumRows() !== 1 || e.range.getNumColumns() !== 1) return;
+
+  const columns = findColumns_(sheet);
+  const column = columns.link || CONFIG.linkColumn;
+  if (e.range.getColumn() !== column) return;
+  if (String(e.range.getDisplayValue() || '').trim() !== CONFIG.linkLabel) return;
+
+  showSidebar();
 }
 
 /**
