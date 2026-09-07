@@ -420,32 +420,16 @@ function writeLinkForRow_(sheet, row, columns) {
     return false;
   }
 
-  const contact = {
-    name: read(columns.name),
-    firstName: firstName_(read(columns.name)),
-    note: read(columns.note),
-  };
-  const template = TEMPLATES[CONFIG.linkTemplateIndex] || TEMPLATES[0];
-  const url = buildLink(phone, renderTemplate(template.body, contact), CONFIG.linkColumnTarget);
-
-  // The cell works both ways: selecting it opens the panel (onSelectionChange),
-  // and the link Sheets offers on the cell still leads to WhatsApp through the
-  // browser. The colour is the state - red until messaged, green afterwards.
-  const done = isDone_(cell);
-  cell.setRichTextValue(
-    SpreadsheetApp.newRichTextValue()
-      .setText(CONFIG.linkLabel)
-      .setLinkUrl(url)
-      .setTextStyle(
-        SpreadsheetApp.newTextStyle()
-          .setForegroundColor(LABEL_TEXT_COLOR)
-          .setBold(true)
-          .setFontSize(10)
-          .build()
-      )
-      .build()
-  );
-  cell.setHorizontalAlignment('center').setBackground(done ? SENT_COLOR : PENDING_COLOR);
+  // Deliberately not a link: a link click is invisible to the script, so the
+  // cell would stay red after messaging. Everything goes through the panel,
+  // which reports back and turns the cell green.
+  cell
+    .setValue(CONFIG.linkLabel)
+    .setFontColor(LABEL_TEXT_COLOR)
+    .setFontWeight('bold')
+    .setFontSize(10)
+    .setHorizontalAlignment('center')
+    .setBackground(isDone_(cell) ? SENT_COLOR : PENDING_COLOR);
   return true;
 }
 
