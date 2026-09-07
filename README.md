@@ -69,6 +69,10 @@ napsanou zprávou pro to číslo.
 - Když v řádku opravíte telefon, jméno nebo poznámku, odkaz se sám přepíše.
   Po přidání nových řádků spusťte **Vytvořit odkazy** znovu.
 - Řádek bez použitelného čísla zůstane prázdný.
+- Odkaz v buňce míří na `wa.me` – na Macu z něj jedním kliknutím naskočí
+  aplikace WhatsApp. Přímou adresu `whatsapp://` buňka tabulky nepřijme
+  („Neplatný argument“), ale v panelu funguje: tam si ji vyberete přepínačem
+  **Otevírat v → aplikaci na Macu** a aplikace se otevře rovnou.
 - Jiný sloupec než I nastavíte v `CONFIG.linkColumn` (9 = I). Když už ve
   sloupci něco je, skript to nepřepíše a upozorní vás.
 - **Kliknutí na odkaz skript nevidí**, takže se u něj nezapíše čas odeslání.

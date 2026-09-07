@@ -26,10 +26,12 @@ const CONFIG = {
   // Colour of the link text in the column.
   linkColor: '#1FA855',
   // Where the link in the column opens:
-  //   'macapp' - the WhatsApp app (whatsapp://), no browser in between
-  //   'app'    - wa.me, which hands over to the app after one confirmation
-  //   'web'    - web.whatsapp.com in the browser
-  linkColumnTarget: 'macapp',
+  //   'app' - wa.me, which hands over to the desktop app after one click
+  //   'web' - web.whatsapp.com in the browser
+  // 'macapp' (whatsapp://) works in the side panel but NOT here: a spreadsheet
+  // cell only accepts http/https links and rejects anything else with
+  // "Exception: Neplatný argument".
+  linkColumnTarget: 'app',
   // Which entry of TEMPLATES the link in the column uses.
   linkTemplateIndex: 0,
 };
