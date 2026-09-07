@@ -23,6 +23,13 @@ const CONFIG = {
   linkColumnHeader: 'WhatsApp',
   linkColumn: 9,
   linkLabel: 'Napsat',
+  // Colour of the link text in the column.
+  linkColor: '#1FA855',
+  // Where the link in the column opens:
+  //   'macapp' - the WhatsApp app (whatsapp://), no browser in between
+  //   'app'    - wa.me, which hands over to the app after one confirmation
+  //   'web'    - web.whatsapp.com in the browser
+  linkColumnTarget: 'macapp',
   // Which entry of TEMPLATES the link in the column uses.
   linkTemplateIndex: 0,
 };
@@ -116,7 +123,11 @@ function getPanelSettings() {
 
 /** Remembers whether links open WhatsApp Web or the app. */
 function saveLinkTarget(target) {
-  PropertiesService.getUserProperties().setProperty('linkTarget', target === 'app' ? 'app' : 'web');
+  const allowed = ['web', 'app', 'macapp'];
+  PropertiesService.getUserProperties().setProperty(
+    'linkTarget',
+    allowed.indexOf(target) !== -1 ? target : 'web'
+  );
 }
 
 /** Headers of the active sheet plus the current mapping, for the dialog. */
@@ -268,9 +279,9 @@ function getProgress_(sheet, columns) {
 function buildLink(phone, message, target) {
   const digits = normalizePhone_(phone);
   const text = encodeURIComponent(message);
-  return target === 'app'
-    ? 'https://wa.me/' + digits + '?text=' + text
-    : 'https://web.whatsapp.com/send?phone=' + digits + '&text=' + text;
+  if (target === 'macapp') return 'whatsapp://send?phone=' + digits + '&text=' + text;
+  if (target === 'app') return 'https://wa.me/' + digits + '?text=' + text;
+  return 'https://web.whatsapp.com/send?phone=' + digits + '&text=' + text;
 }
 
 /** Writes the current time into the "sent" column of the given row. */
@@ -401,13 +412,20 @@ function writeLinkForRow_(sheet, row, columns) {
     note: read(columns.note),
   };
   const template = TEMPLATES[CONFIG.linkTemplateIndex] || TEMPLATES[0];
-  const url = buildLink(phone, renderTemplate(template.body, contact), linkTarget_());
+  const url = buildLink(phone, renderTemplate(template.body, contact), CONFIG.linkColumnTarget);
 
   // A rich text link rather than =HYPERLINK(): Apps Script writes formulas with
   // comma separators, which a spreadsheet whose locale separates arguments with
-  // semicolons (Czech among them) rejects with #ERROR!.
+  // semicolons (Czech among them) rejects with #ERROR!. Setting the style here
+  // too keeps the link in the WhatsApp green rather than the default link blue.
   cell.setRichTextValue(
-    SpreadsheetApp.newRichTextValue().setText(CONFIG.linkLabel).setLinkUrl(url).build()
+    SpreadsheetApp.newRichTextValue()
+      .setText(CONFIG.linkLabel)
+      .setLinkUrl(url)
+      .setTextStyle(
+        SpreadsheetApp.newTextStyle().setForegroundColor(CONFIG.linkColor).setBold(true).build()
+      )
+      .build()
   );
   return true;
 }
@@ -418,12 +436,13 @@ function ownsCell_(cell) {
   if (formula.indexOf('wa.me') !== -1 || formula.indexOf('whatsapp.com') !== -1) return true;
   const rich = cell.getRichTextValue();
   const url = rich ? rich.getLinkUrl() : null;
-  return Boolean(url && (url.indexOf('wa.me') !== -1 || url.indexOf('whatsapp.com') !== -1));
+  return Boolean(url && (url.indexOf('wa.me') !== -1 || url.indexOf('whatsapp') !== -1));
 }
 
 /** Whether links point at WhatsApp Web or hand over to the app. */
 function linkTarget_() {
-  return PropertiesService.getUserProperties().getProperty('linkTarget') === 'app' ? 'app' : 'web';
+  const stored = PropertiesService.getUserProperties().getProperty('linkTarget');
+  return ['web', 'app', 'macapp'].indexOf(stored) !== -1 ? stored : 'web';
 }
 
 /**
