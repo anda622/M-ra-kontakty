@@ -450,6 +450,20 @@ function writeLinkForRow_(sheet, row, columns) {
   return true;
 }
 
+/** Green cell = this contact has already been messaged. */
+function isDone_(cell) {
+  return String(cell.getBackground() || '').toLowerCase() === SENT_COLOR.toLowerCase();
+}
+
+/** True when the cell is one this script painted, so clearing it is safe. */
+function ownsCell_(cell) {
+  const background = String(cell.getBackground() || '').toLowerCase();
+  if (background === SENT_COLOR.toLowerCase() || background === PENDING_COLOR.toLowerCase()) {
+    return true;
+  }
+  return String(cell.getDisplayValue() || '').trim() === CONFIG.linkLabel;
+}
+
 /** Installs the edit trigger that opens the panel. Run once from the editor. */
 function installPanelTrigger() {
   const spreadsheet = SpreadsheetApp.getActive();
