@@ -332,6 +332,23 @@ function setupLinkColumn() {
       );
       return;
     }
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow > CONFIG.headerRow) {
+      const below = sheet
+        .getRange(CONFIG.headerRow + 1, column, lastRow - CONFIG.headerRow, 1)
+        .getDisplayValues()
+        .filter(function (value) { return String(value[0]).trim(); }).length;
+      if (below) {
+        ui.alert(
+          'Ve sloupci ' + columnLetter_(column) + ' je ' + below + ' vyplněných buněk. ' +
+            'Skript by je přepsal, tak radši nic nedělám.\n\n' +
+            'Uvolněte sloupec, nebo změňte CONFIG.linkColumn na jiný.'
+        );
+        return;
+      }
+    }
+
     sheet.getRange(CONFIG.headerRow, column).setValue(CONFIG.linkColumnHeader).setFontWeight('bold');
   }
 
@@ -374,10 +391,7 @@ function writeLinkForRow_(sheet, row, columns) {
   const phone = normalizePhone_(read(columns.phone));
   if (phone.length < 9) {
     // Only clear a cell this script owns, never someone's data.
-    if (String(cell.getFormula() || '').indexOf('wa.me') !== -1 ||
-        String(cell.getFormula() || '').indexOf('whatsapp.com') !== -1) {
-      cell.clearContent();
-    }
+    if (ownsCell_(cell)) cell.clearContent();
     return false;
   }
 
@@ -389,9 +403,22 @@ function writeLinkForRow_(sheet, row, columns) {
   const template = TEMPLATES[CONFIG.linkTemplateIndex] || TEMPLATES[0];
   const url = buildLink(phone, renderTemplate(template.body, contact), linkTarget_());
 
-  // encodeURIComponent leaves no quotes in the url, so this is safe to inline.
-  cell.setFormula('=HYPERLINK("' + url + '","' + CONFIG.linkLabel + '")');
+  // A rich text link rather than =HYPERLINK(): Apps Script writes formulas with
+  // comma separators, which a spreadsheet whose locale separates arguments with
+  // semicolons (Czech among them) rejects with #ERROR!.
+  cell.setRichTextValue(
+    SpreadsheetApp.newRichTextValue().setText(CONFIG.linkLabel).setLinkUrl(url).build()
+  );
   return true;
+}
+
+/** True when the cell holds a WhatsApp link this script wrote. */
+function ownsCell_(cell) {
+  const formula = String(cell.getFormula() || '');
+  if (formula.indexOf('wa.me') !== -1 || formula.indexOf('whatsapp.com') !== -1) return true;
+  const rich = cell.getRichTextValue();
+  const url = rich ? rich.getLinkUrl() : null;
+  return Boolean(url && (url.indexOf('wa.me') !== -1 || url.indexOf('whatsapp.com') !== -1));
 }
 
 /** Whether links point at WhatsApp Web or hand over to the app. */
