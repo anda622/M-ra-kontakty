@@ -385,9 +385,7 @@ function setupLinkColumn() {
     'Hotovo',
     'Ve sloupci ' + columnLetter_(column) + ' je u ' + written + ' kontaktů "' +
       CONFIG.linkLabel + '".\n\n' +
-      (CONFIG.linkOpensPanel
-        ? 'Kliknutím na něj se otevře panel a z něj spustíte WhatsApp.'
-        : 'Kliknutím se otevře WhatsApp s předepsanou zprávou.'),
+      'Kliknutím se otevře panel; odkaz na buňce vede do WhatsAppu i bez něj.',
     ui.ButtonSet.OK
   );
 }
