@@ -527,6 +527,20 @@ function vocative_(name) {
   return word + 'e';
 }
 
+/**
+ * Only for checking in the editor: pick this function in the toolbar, press
+ * Run, and the execution log shows what the greeting will look like.
+ */
+function testSklonovani() {
+  ['Martin', 'Jana', 'Lukáš', 'Petr', 'Marek', 'Kateřina'].forEach(function (name) {
+    Logger.log(name + ' -> ' + vocative_(name));
+  });
+  Logger.log(
+    'První řádek zprávy: ' +
+      renderTemplate(TEMPLATES[CONFIG.linkTemplateIndex].body, { firstName: 'Martin' }).split('\n')[0]
+  );
+}
+
 // --- helpers ---------------------------------------------------------------
 
 /**
