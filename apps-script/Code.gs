@@ -73,6 +73,13 @@ const TEMPLATES = [
   },
 ];
 
+// The "Napsat" cell carries the state itself, so no timestamp column is needed:
+// red until the contact has been messaged, green afterwards.
+const PENDING_COLOR = '#EA4335';
+const SENT_COLOR = '#34A853';
+const LABEL_TEXT_COLOR = '#FFFFFF';
+const LINK_COLUMN_WIDTH = 70;
+
 const FIELD_LABELS = {
   name: 'Jméno',
   phone: 'Telefon',
@@ -242,10 +249,9 @@ function goToNextUncontacted() {
   const count = lastRow - CONFIG.headerRow;
   if (count < 1) return { ok: false, error: 'V tabulce nejsou žádné kontakty.' };
 
+  const linkColumn = columns.link || CONFIG.linkColumn;
   const phones = sheet.getRange(CONFIG.headerRow + 1, columns.phone, count, 1).getDisplayValues();
-  const sent = columns.sent
-    ? sheet.getRange(CONFIG.headerRow + 1, columns.sent, count, 1).getDisplayValues()
-    : null;
+  const states = sheet.getRange(CONFIG.headerRow + 1, linkColumn, count, 1).getBackgrounds();
 
   const active = SpreadsheetApp.getActiveRange();
   const start = active ? Math.max(active.getRow() - CONFIG.headerRow, 0) : 0;
@@ -253,7 +259,7 @@ function goToNextUncontacted() {
   for (let step = 0; step < count; step++) {
     const index = (start + step) % count;
     if (normalizePhone_(phones[index][0]).length < 9) continue;
-    if (sent && String(sent[index][0]).trim()) continue;
+    if (String(states[index][0]).toLowerCase() === SENT_COLOR.toLowerCase()) continue;
     sheet.setActiveRange(sheet.getRange(CONFIG.headerRow + 1 + index, 1));
     return getSelection();
   }
@@ -267,17 +273,16 @@ function getProgress_(sheet, columns) {
   const count = lastRow - CONFIG.headerRow;
   if (count < 1 || !columns.phone) return { total: 0, done: 0 };
 
+  const linkColumn = columns.link || CONFIG.linkColumn;
   const phones = sheet.getRange(CONFIG.headerRow + 1, columns.phone, count, 1).getDisplayValues();
-  const sent = columns.sent
-    ? sheet.getRange(CONFIG.headerRow + 1, columns.sent, count, 1).getDisplayValues()
-    : null;
+  const states = sheet.getRange(CONFIG.headerRow + 1, linkColumn, count, 1).getBackgrounds();
 
   let total = 0;
   let done = 0;
   for (let i = 0; i < count; i++) {
     if (normalizePhone_(phones[i][0]).length < 9) continue;
     total++;
-    if (sent && String(sent[i][0]).trim()) done++;
+    if (String(states[i][0]).toLowerCase() === SENT_COLOR.toLowerCase()) done++;
   }
   return { total: total, done: done };
 }
@@ -303,18 +308,13 @@ function buildLink(phone, message, target) {
   return 'https://web.whatsapp.com/send?phone=' + digits + '&text=' + text;
 }
 
-/** Writes the current time into the "sent" column of the given row. */
+/** Turns the row's button green, which is what "already messaged" means now. */
 function markSent(row) {
   const sheet = SpreadsheetApp.getActiveSheet();
   const columns = findColumns_(sheet);
-  const column = columns.sent || createSentColumn_(sheet);
-  const stamp = Utilities.formatDate(
-    new Date(),
-    sheet.getParent().getSpreadsheetTimeZone(),
-    'd.M.yyyy H:mm'
-  );
-  sheet.getRange(row, column).setValue(stamp);
-  return stamp;
+  const column = columns.link || CONFIG.linkColumn;
+  sheet.getRange(row, column).setBackground(SENT_COLOR);
+  return 'ano';
 }
 
 /** Fills {jmeno}, {poznamka} and {datum} in a template body. */
@@ -385,7 +385,6 @@ function setupLinkColumn() {
   }
 
   const written = refreshLinkColumn_(sheet);
-  sheet.setColumnWidth(column, 90);
 
   ui.alert(
     'Hotovo',
@@ -406,6 +405,7 @@ function refreshLinkColumn_(sheet) {
   for (let row = CONFIG.headerRow + 1; row <= lastRow; row++) {
     if (writeLinkForRow_(sheet, row, columns)) written++;
   }
+  sheet.setColumnWidth(columns.link || CONFIG.linkColumn, LINK_COLUMN_WIDTH);
   return written;
 }
 
@@ -423,43 +423,25 @@ function writeLinkForRow_(sheet, row, columns) {
 
   const phone = normalizePhone_(read(columns.phone));
   if (phone.length < 9) {
-    // Only clear a cell this script owns, never someone's data.
-    if (ownsCell_(cell)) cell.clearContent();
+    if (ownsCell_(cell)) {
+      cell.clearContent().setBackground(null);
+    }
     return false;
   }
 
-  const contact = {
-    name: read(columns.name),
-    firstName: firstName_(read(columns.name)),
-    note: read(columns.note),
-  };
-  if (CONFIG.linkOpensPanel) {
-    // No link at all: clicking the cell opens the panel (see onSelectionChange)
-    // and WhatsApp starts from there, so no browser page is ever involved.
-    cell
-      .setValue(CONFIG.linkLabel)
-      .setFontColor(CONFIG.linkColor)
-      .setFontWeight('bold')
-      .setHorizontalAlignment('center');
-    return true;
-  }
-
-  const template = TEMPLATES[CONFIG.linkTemplateIndex] || TEMPLATES[0];
-  const url = buildLink(phone, renderTemplate(template.body, contact), CONFIG.linkColumnTarget);
-
-  // A rich text link rather than =HYPERLINK(): Apps Script writes formulas with
-  // comma separators, which a spreadsheet whose locale separates arguments with
-  // semicolons (Czech among them) rejects with #ERROR!.
-  cell.setRichTextValue(
-    SpreadsheetApp.newRichTextValue()
-      .setText(CONFIG.linkLabel)
-      .setLinkUrl(url)
-      .setTextStyle(
-        SpreadsheetApp.newTextStyle().setForegroundColor(CONFIG.linkColor).setBold(true).build()
-      )
-      .build()
-  );
+  cell
+    .setValue(CONFIG.linkLabel)
+    .setFontColor(LABEL_TEXT_COLOR)
+    .setFontWeight('bold')
+    .setFontSize(10)
+    .setHorizontalAlignment('center')
+    .setBackground(isDone_(cell) ? SENT_COLOR : PENDING_COLOR);
   return true;
+}
+
+/** Green cell = this contact has already been messaged. */
+function isDone_(cell) {
+  return String(cell.getBackground() || '').toLowerCase() === SENT_COLOR.toLowerCase();
 }
 
 /** True when the cell holds a WhatsApp link this script wrote. */

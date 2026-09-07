@@ -75,8 +75,8 @@ napsanou zprávou pro to číslo.
   **Otevírat v → aplikaci na Macu** a aplikace se otevře rovnou.
 - Jiný sloupec než I nastavíte v `CONFIG.linkColumn` (9 = I). Když už ve
   sloupci něco je, skript to nepřepíše a upozorní vás.
-- **Kliknutí na odkaz skript nevidí**, takže se u něj nezapíše čas odeslání.
-  Čas zapisuje jen odeslání přes panel.
+- Políčko **Napsat** je zároveň stav kontaktu: **červené** = ještě jste
+  nepsala, **zelené** = zpráva odešla. Žádný sloupec s časem není potřeba.
 
 ## Jak se to používá přes panel
 
