@@ -443,48 +443,11 @@ function installPanelTrigger() {
   );
 }
 
-/** Ticking the checkbox opens the panel for that row and clears the tick. */
-function onCheckboxEdit(e) {
-  if (!e || !e.range) return;
-  const sheet = e.range.getSheet();
-  const row = e.range.getRow();
-  if (row <= CONFIG.headerRow) return;
-  if (e.range.getNumRows() !== 1 || e.range.getNumColumns() !== 1) return;
-
-  const column = findColumns_(sheet).link || CONFIG.linkColumn;
-  if (e.range.getColumn() !== column) return;
-  if (e.range.getValue() !== true) return;
-
-  e.range.uncheck();
-  showSidebar();
-}
-
-/** Green cell = this contact has already been messaged. */
-function isDone_(cell) {
-  return String(cell.getBackground() || '').toLowerCase() === SENT_COLOR.toLowerCase();
-}
-
-/** True when the cell holds a WhatsApp link this script wrote. */
-function ownsCell_(cell) {
-  const background = String(cell.getBackground() || '').toLowerCase();
-  if (background === SENT_COLOR.toLowerCase() || background === PENDING_COLOR.toLowerCase()) {
-    return true;
-  }
-  return String(cell.getDisplayValue() || '').trim() === CONFIG.linkLabel;
-}
-
-/** Whether links point at WhatsApp Web or hand over to the app. */
-function linkTarget_() {
-  const stored = PropertiesService.getUserProperties().getProperty('linkTarget');
-  return ['web', 'app', 'macapp'].indexOf(stored) !== -1 ? stored : 'macapp';
-}
-
 /**
- * Clicking "Napsat" opens the panel for that row. Sheets has no click event,
- * but selecting the cell is close enough - and it is the only way to get from
- * the sheet into WhatsApp without a browser page on the way.
+ * The installable edit trigger: ticking the checkbox opens the panel for that
+ * row, and a phone number typed into a fresh row gets its checkbox at once.
  */
-function onSelectionChange(e) {
+function onCheckboxEdit(e) {
   if (!e || !e.range) return;
   const sheet = e.range.getSheet();
   const row = e.range.getRow();
@@ -493,29 +456,60 @@ function onSelectionChange(e) {
 
   const columns = findColumns_(sheet);
   const column = columns.link || CONFIG.linkColumn;
-  if (e.range.getColumn() !== column) return;
-  if (String(e.range.getDisplayValue() || '').trim() !== CONFIG.linkLabel) return;
+  const edited = e.range.getColumn();
 
-  showSidebar();
+  if (edited === column) {
+    if (e.range.getValue() !== true) return;
+    e.range.uncheck();
+    showSidebar();
+    return;
+  }
+
+  if (columns.phone && edited === columns.phone) {
+    writeLinkForRow_(sheet, row, columns);
+  }
 }
 
 /**
- * Keeps the links current: editing a name, phone or note rewrites that row's
- * link. Programmatic edits do not fire this, so it cannot loop.
+ * Gives a checkbox to every contact that has none. Rows added by a script -
+ * leads arriving from the ad form - never fire an edit trigger, so a timed
+ * run is the only thing that catches them.
  */
-function onEdit(e) {
-  if (!e || !e.range) return;
-  const sheet = e.range.getSheet();
-  const row = e.range.getRow();
-  if (row <= CONFIG.headerRow || e.range.getNumRows() !== 1) return;
+function fillMissingCheckboxes() {
+  SpreadsheetApp.getActive().getSheets().forEach(function (sheet) {
+    const columns = findColumns_(sheet);
+    if (!columns.link || !columns.phone) return;
 
-  const columns = findColumns_(sheet);
-  if (!columns.link || !columns.phone) return;
+    const count = sheet.getLastRow() - CONFIG.headerRow;
+    if (count < 1) return;
 
-  const edited = e.range.getColumn();
-  if (edited !== columns.phone && edited !== columns.name && edited !== columns.note) return;
+    const backgrounds = sheet
+      .getRange(CONFIG.headerRow + 1, columns.link, count, 1)
+      .getBackgrounds();
+    const phones = sheet
+      .getRange(CONFIG.headerRow + 1, columns.phone, count, 1)
+      .getDisplayValues();
 
-  writeLinkForRow_(sheet, row, columns);
+    for (let i = 0; i < count; i++) {
+      const background = String(backgrounds[i][0]).toLowerCase();
+      const hasButton =
+        background === PENDING_COLOR.toLowerCase() || background === SENT_COLOR.toLowerCase();
+      if (hasButton) continue;
+      if (normalizePhone_(phones[i][0]).length < 9) continue;
+      writeLinkForRow_(sheet, CONFIG.headerRow + 1 + i, columns);
+    }
+  });
+}
+
+/** Run once from the editor to start the five-minute check. */
+function installAutoFillTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'fillMissingCheckboxes') ScriptApp.deleteTrigger(trigger);
+  });
+  ScriptApp.newTrigger('fillMissingCheckboxes').timeBased().everyMinutes(5).create();
+  SpreadsheetApp.getUi().alert(
+    'Hotovo. Nové kontakty dostanou zaškrtávátko samy, nejpozději do pěti minut.'
+  );
 }
 
 // --- Czech vocative ---------------------------------------------------------
