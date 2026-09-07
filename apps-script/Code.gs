@@ -25,11 +25,6 @@ const CONFIG = {
   linkLabel: 'Napsat',
   // Colour of the "Napsat" text in the column.
   linkColor: '#1FA855',
-  // true  - the cell is plain text and clicking it opens the side panel, from
-  //         which WhatsApp starts without a browser in the way.
-  // false - the cell is a link straight to WhatsApp (which always goes through
-  //         a browser page, because a cell only accepts http/https links).
-  linkOpensPanel: true,
   // Where the link in the column opens:
   //   'app' - wa.me, which hands over to the desktop app after one click
   //   'web' - web.whatsapp.com in the browser
@@ -423,19 +418,36 @@ function writeLinkForRow_(sheet, row, columns) {
 
   const phone = normalizePhone_(read(columns.phone));
   if (phone.length < 9) {
-    if (ownsCell_(cell)) {
-      cell.clearContent().setBackground(null);
-    }
+    if (ownsCell_(cell)) cell.clearContent().setBackground(null);
     return false;
   }
 
-  cell
-    .setValue(CONFIG.linkLabel)
-    .setFontColor(LABEL_TEXT_COLOR)
-    .setFontWeight('bold')
-    .setFontSize(10)
-    .setHorizontalAlignment('center')
-    .setBackground(isDone_(cell) ? SENT_COLOR : PENDING_COLOR);
+  const contact = {
+    name: read(columns.name),
+    firstName: firstName_(read(columns.name)),
+    note: read(columns.note),
+  };
+  const template = TEMPLATES[CONFIG.linkTemplateIndex] || TEMPLATES[0];
+  const url = buildLink(phone, renderTemplate(template.body, contact), CONFIG.linkColumnTarget);
+
+  // The cell works both ways: selecting it opens the panel (onSelectionChange),
+  // and the link Sheets offers on the cell still leads to WhatsApp through the
+  // browser. The colour is the state - red until messaged, green afterwards.
+  const done = isDone_(cell);
+  cell.setRichTextValue(
+    SpreadsheetApp.newRichTextValue()
+      .setText(CONFIG.linkLabel)
+      .setLinkUrl(url)
+      .setTextStyle(
+        SpreadsheetApp.newTextStyle()
+          .setForegroundColor(LABEL_TEXT_COLOR)
+          .setBold(true)
+          .setFontSize(10)
+          .build()
+      )
+      .build()
+  );
+  cell.setHorizontalAlignment('center').setBackground(done ? SENT_COLOR : PENDING_COLOR);
   return true;
 }
 
