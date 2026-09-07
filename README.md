@@ -112,6 +112,7 @@ libovolný počet. Značky se doplní z řádku:
 | `{jmeno}` | křestní jméno v 5. pádu – *Martine*, *Jano*, *Lukáši* |
 | `{jmeno1}` | křestní jméno tak, jak je v tabulce – *Martin* |
 | `{poznamka}` | obsah sloupce s poznámkou |
+| `{termin}` | domluvený termín ze sloupce G (`MEETING_COLUMN`) |
 | `{datum}` | dnešní datum |
 
 Skloňování je odhad podle koncovky, ne slovník. Jméno, které netrefí, dopište

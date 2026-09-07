@@ -48,7 +48,8 @@ const COLUMN_ALIASES = {
 
 // Message templates offered in the side panel.
 // Placeholders: {jmeno} (fifth case - "Martine"), {jmeno1} (as written in the
-// sheet - "Martin"), {poznamka}, {datum}
+// sheet - "Martin"), {termin} (the appointment from MEETING_COLUMN),
+// {poznamka}, {datum}
 const TEMPLATES = [
   {
     name: 'Po hovoru – shrnutí',
@@ -63,8 +64,12 @@ const TEMPLATES = [
     body: 'Dobrý den, {jmeno},\n\njak jsme se domluvili po telefonu, posílám slíbené informace:\n\n\nDejte mi prosím vědět, jestli je to takhle v pořádku.\n\nS pozdravem',
   },
   {
+    name: 'Potvrzení schůzky',
+    body: 'Dobrý den, {jmeno},\n\npotvrzuji naši schůzku: {termin}.\n\nKdyby se něco změnilo, dejte mi prosím včas vědět. Těším se na Vás.',
+  },
+  {
     name: 'Připomenutí schůzky',
-    body: 'Dobrý den, {jmeno},\n\njen připomínám naši domluvenou schůzku. Kdyby se něco změnilo, dejte mi prosím včas vědět.\n\nTěším se',
+    body: 'Dobrý den, {jmeno},\n\njen připomínám naši schůzku: {termin}. Kdyby se něco změnilo, dejte mi prosím včas vědět.\n\nTěším se',
   },
 ];
 
@@ -74,6 +79,9 @@ const PENDING_COLOR = '#EA4335';
 const SENT_COLOR = '#34A853';
 const LABEL_TEXT_COLOR = '#FFFFFF';
 const LINK_COLUMN_WIDTH = 70;
+
+// Column holding the agreed appointment, used by {termin}. G = 7.
+const MEETING_COLUMN = 7;
 
 const FIELD_LABELS = {
   name: 'Jméno',
@@ -320,9 +328,21 @@ function renderTemplate(body, contact) {
     'd.M.yyyy'
   );
   const first = contact.firstName || contact.name || '';
+
+  // {termin} is read from the sheet each time the message is rendered, so an
+  // appointment changed in the column shows up in the next message with no
+  // further action.
+  let meeting = '';
+  if (contact.row) {
+    meeting = String(
+      SpreadsheetApp.getActiveSheet().getRange(contact.row, MEETING_COLUMN).getDisplayValue() || ''
+    ).trim();
+  }
+
   return String(body)
     .replace(/\{jmeno1\}/g, first)
     .replace(/\{jmeno\}/g, vocative_(first))
+    .replace(/\{termin\}/g, meeting)
     .replace(/\{poznamka\}/g, contact.note || '')
     .replace(/\{datum\}/g, today);
 }
