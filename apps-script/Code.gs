@@ -47,23 +47,24 @@ const COLUMN_ALIASES = {
 };
 
 // Message templates offered in the side panel.
-// Placeholders: {jmeno}, {poznamka}, {datum}
+// Placeholders: {jmeno} (fifth case - "Martine"), {jmeno1} (as written in the
+// sheet - "Martin"), {poznamka}, {datum}
 const TEMPLATES = [
   {
     name: 'Po hovoru – shrnutí',
-    body: 'Dobrý den {jmeno},\n\nděkuji za dnešní telefonát. Posílám shrnutí toho, na čem jsme se domluvili:\n\n- \n- \n\nKdyby cokoliv, klidně mi napište sem.\n\nHezký den',
+    body: 'Dobrý den, {jmeno},\n\nděkuji za dnešní telefonát. Posílám shrnutí toho, na čem jsme se domluvili:\n\n- \n- \n\nKdyby cokoliv, klidně mi napište sem.\n\nHezký den',
   },
   {
     name: 'Nedovolala jsem se',
-    body: 'Dobrý den {jmeno},\n\nzkoušela jsem se Vám dnes dovolat, bohužel jsem Vás nezastihla. Ozvěte se prosím, až budete mít chvíli, nebo mi napište, kdy se Vám to hodí.\n\nDěkuji a hezký den',
+    body: 'Dobrý den, {jmeno},\n\nzkoušela jsem se Vám dnes dovolat, bohužel jsem Vás nezastihla. Ozvěte se prosím, až budete mít chvíli, nebo mi napište, kdy se Vám to hodí.\n\nDěkuji a hezký den',
   },
   {
     name: 'Poslání informací',
-    body: 'Dobrý den {jmeno},\n\njak jsme se domluvili po telefonu, posílám slíbené informace:\n\n\nDejte mi prosím vědět, jestli je to takhle v pořádku.\n\nS pozdravem',
+    body: 'Dobrý den, {jmeno},\n\njak jsme se domluvili po telefonu, posílám slíbené informace:\n\n\nDejte mi prosím vědět, jestli je to takhle v pořádku.\n\nS pozdravem',
   },
   {
     name: 'Připomenutí schůzky',
-    body: 'Dobrý den {jmeno},\n\njen připomínám naši domluvenou schůzku. Kdyby se něco změnilo, dejte mi prosím včas vědět.\n\nTěším se',
+    body: 'Dobrý den, {jmeno},\n\njen připomínám naši domluvenou schůzku. Kdyby se něco změnilo, dejte mi prosím včas vědět.\n\nTěším se',
   },
 ];
 
@@ -119,7 +120,7 @@ function showColumnPicker() {
 function getPanelSettings() {
   return {
     templates: TEMPLATES,
-    target: PropertiesService.getUserProperties().getProperty('linkTarget') || 'web',
+    target: linkTarget_(),
   };
 }
 
@@ -307,8 +308,10 @@ function renderTemplate(body, contact) {
     SpreadsheetApp.getActive().getSpreadsheetTimeZone(),
     'd.M.yyyy'
   );
+  const first = contact.firstName || contact.name || '';
   return String(body)
-    .replace(/\{jmeno\}/g, contact.firstName || contact.name || '')
+    .replace(/\{jmeno1\}/g, first)
+    .replace(/\{jmeno\}/g, vocative_(first))
     .replace(/\{poznamka\}/g, contact.note || '')
     .replace(/\{datum\}/g, today);
 }
@@ -444,7 +447,7 @@ function ownsCell_(cell) {
 /** Whether links point at WhatsApp Web or hand over to the app. */
 function linkTarget_() {
   const stored = PropertiesService.getUserProperties().getProperty('linkTarget');
-  return ['web', 'app', 'macapp'].indexOf(stored) !== -1 ? stored : 'web';
+  return ['web', 'app', 'macapp'].indexOf(stored) !== -1 ? stored : 'macapp';
 }
 
 /**
@@ -464,6 +467,64 @@ function onEdit(e) {
   if (edited !== columns.phone && edited !== columns.name && edited !== columns.note) return;
 
   writeLinkForRow_(sheet, row, columns);
+}
+
+// --- Czech vocative ---------------------------------------------------------
+
+// Names the rules below get wrong, plus women's names ending in a consonant,
+// which stay unchanged. Add your own as you meet them: key in lower case,
+// value exactly as it should be written.
+const VOCATIVE_EXCEPTIONS = {
+  petr: 'Petře',
+  pavel: 'Pavle',
+  karel: 'Karle',
+  daniel: 'Danieli',
+  gabriel: 'Gabrieli',
+  marcel: 'Marceli',
+  dagmar: 'Dagmar',
+  ester: 'Ester',
+  miriam: 'Miriam',
+  karin: 'Karin',
+  ingrid: 'Ingrid',
+  nikol: 'Nikol',
+  sarah: 'Sarah',
+  ruth: 'Ruth',
+};
+
+/**
+ * Fifth case of a first name: Martin -> Martine, Jana -> Jano, Lukáš -> Lukáši.
+ * A heuristic, not a dictionary - a name it gets wrong belongs in
+ * VOCATIVE_EXCEPTIONS above.
+ */
+function vocative_(name) {
+  const word = String(name || '').trim();
+  if (word.length < 2) return word;
+
+  const key = word.toLowerCase();
+  if (VOCATIVE_EXCEPTIONS[key]) return VOCATIVE_EXCEPTIONS[key];
+
+  const stem = function (cut) {
+    return word.slice(0, word.length - cut);
+  };
+
+  // Jana -> Jano, Honza -> Honzo
+  if (/[aá]$/.test(key)) return stem(1) + 'o';
+  // Marie, Lucie, Jiří, Ivo - already in the right shape
+  if (/[eéiíyýoóuúů]$/.test(key)) return word;
+  // Marek -> Marku, Vašek -> Vašku, Zdeněk -> Zdeňku
+  if (/[eě]k$/.test(key)) {
+    let base = stem(2);
+    if (key.charAt(key.length - 2) === 'ě' && /n$/.test(base)) base = base.slice(0, -1) + 'ň';
+    return base + 'ku';
+  }
+  // Pavel -> Pavle
+  if (/el$/.test(key)) return stem(2) + 'le';
+  // Vojtěch -> Vojtěchu, Dominik -> Dominiku
+  if (/[kgh]$/.test(key)) return word + 'u';
+  // Tomáš -> Tomáši, Ondřej -> Ondřeji, Denis -> Denisi
+  if (/[cjsřščťžďň]$/.test(key)) return word + 'i';
+  // Martin -> Martine, David -> Davide
+  return word + 'e';
 }
 
 // --- helpers ---------------------------------------------------------------

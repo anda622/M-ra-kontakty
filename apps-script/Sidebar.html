@@ -52,9 +52,9 @@
     <div class="row">
       <span class="muted">Otevírat v:</span>
       <select id="target">
-        <option value="web">WhatsApp Web</option>
         <option value="macapp">aplikaci na Macu</option>
         <option value="app">aplikaci přes wa.me</option>
+        <option value="web">WhatsApp Web</option>
       </select>
     </div>
 
@@ -63,7 +63,7 @@
     <script>
       var templates = [];
       var contact = null;
-      var target = 'web';
+      var target = 'macapp';
 
       function el(id) { return document.getElementById(id); }
 

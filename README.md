@@ -105,8 +105,18 @@ Přepínač **Otevírat v**:
 ### Šablony zpráv
 
 V `Code.gs` v poli `TEMPLATES`. Přepište je podle sebe, přidat můžete
-libovolný počet. Značky `{jmeno}` (křestní jméno), `{poznamka}` a `{datum}`
-se doplní z řádku. Po úpravě soubor uložte a tabulku načtěte znovu.
+libovolný počet. Značky se doplní z řádku:
+
+| Značka | Co doplní |
+|---|---|
+| `{jmeno}` | křestní jméno v 5. pádu – *Martine*, *Jano*, *Lukáši* |
+| `{jmeno1}` | křestní jméno tak, jak je v tabulce – *Martin* |
+| `{poznamka}` | obsah sloupce s poznámkou |
+| `{datum}` | dnešní datum |
+
+Skloňování je odhad podle koncovky, ne slovník. Jméno, které netrefí, dopište
+do tabulky `VOCATIVE_EXCEPTIONS` v `Code.gs` – klíč malými písmeny, hodnota
+přesně tak, jak se má napsat. Po úpravě soubor uložte a tabulku načtěte znovu.
 
 ## Co tenhle nástroj nedělá
 
