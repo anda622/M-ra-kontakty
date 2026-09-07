@@ -416,21 +416,47 @@ function writeLinkForRow_(sheet, row, columns) {
 
   const phone = normalizePhone_(read(columns.phone));
   if (phone.length < 9) {
-    if (ownsCell_(cell)) cell.clearContent().setBackground(null);
+    if (ownsCell_(cell)) cell.clearContent().clearDataValidations().setBackground(null);
     return false;
   }
 
-  // Deliberately not a link: a link click is invisible to the script, so the
-  // cell would stay red after messaging. Everything goes through the panel,
-  // which reports back and turns the cell green.
-  cell
-    .setValue(CONFIG.linkLabel)
-    .setFontColor(LABEL_TEXT_COLOR)
-    .setFontWeight('bold')
-    .setFontSize(10)
-    .setHorizontalAlignment('center')
-    .setBackground(isDone_(cell) ? SENT_COLOR : PENDING_COLOR);
+  // A checkbox rather than a label: ticking it is an *edit*, and an installable
+  // edit trigger runs with full authorisation, so it may open the panel -
+  // selecting a cell may not. The background still carries the state.
+  const done = isDone_(cell);
+  cell.insertCheckboxes();
+  cell.uncheck();
+  cell.setHorizontalAlignment('center').setBackground(done ? SENT_COLOR : PENDING_COLOR);
   return true;
+}
+
+/** Installs the edit trigger that opens the panel. Run once from the editor. */
+function installPanelTrigger() {
+  const spreadsheet = SpreadsheetApp.getActive();
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'onCheckboxEdit') ScriptApp.deleteTrigger(trigger);
+  });
+  ScriptApp.newTrigger('onCheckboxEdit').forSpreadsheet(spreadsheet).onEdit().create();
+  SpreadsheetApp.getUi().alert(
+    'Hotovo. Kliknutí do políčka ve sloupci ' + columnLetter_(CONFIG.linkColumn) +
+      ' teď otevře panel s tím kontaktem.'
+  );
+}
+
+/** Ticking the checkbox opens the panel for that row and clears the tick. */
+function onCheckboxEdit(e) {
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  const row = e.range.getRow();
+  if (row <= CONFIG.headerRow) return;
+  if (e.range.getNumRows() !== 1 || e.range.getNumColumns() !== 1) return;
+
+  const column = findColumns_(sheet).link || CONFIG.linkColumn;
+  if (e.range.getColumn() !== column) return;
+  if (e.range.getValue() !== true) return;
+
+  e.range.uncheck();
+  showSidebar();
 }
 
 /** Green cell = this contact has already been messaged. */
@@ -440,12 +466,11 @@ function isDone_(cell) {
 
 /** True when the cell holds a WhatsApp link this script wrote. */
 function ownsCell_(cell) {
-  if (String(cell.getDisplayValue() || '').trim() === CONFIG.linkLabel) return true;
-  const formula = String(cell.getFormula() || '');
-  if (formula.indexOf('wa.me') !== -1 || formula.indexOf('whatsapp.com') !== -1) return true;
-  const rich = cell.getRichTextValue();
-  const url = rich ? rich.getLinkUrl() : null;
-  return Boolean(url && (url.indexOf('wa.me') !== -1 || url.indexOf('whatsapp') !== -1));
+  const background = String(cell.getBackground() || '').toLowerCase();
+  if (background === SENT_COLOR.toLowerCase() || background === PENDING_COLOR.toLowerCase()) {
+    return true;
+  }
+  return String(cell.getDisplayValue() || '').trim() === CONFIG.linkLabel;
 }
 
 /** Whether links point at WhatsApp Web or hand over to the app. */
