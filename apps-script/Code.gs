@@ -450,6 +450,12 @@ function writeLinkForRow_(sheet, row, columns) {
   return true;
 }
 
+/** Whether the panel's button opens the desktop app, wa.me or WhatsApp Web. */
+function linkTarget_() {
+  const stored = PropertiesService.getUserProperties().getProperty('linkTarget');
+  return ['web', 'app', 'macapp'].indexOf(stored) !== -1 ? stored : 'macapp';
+}
+
 /** Green cell = this contact has already been messaged. */
 function isDone_(cell) {
   return String(cell.getBackground() || '').toLowerCase() === SENT_COLOR.toLowerCase();
