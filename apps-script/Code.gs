@@ -52,24 +52,27 @@ const COLUMN_ALIASES = {
 // {poznamka}, {datum}
 const TEMPLATES = [
   {
-    name: 'Po hovoru – shrnutí',
-    body: 'Dobrý den, {jmeno},\n\nděkuji za dnešní telefonát. Posílám shrnutí toho, na čem jsme se domluvili:\n\n- \n- \n\nKdyby cokoliv, klidně mi napište sem.\n\nHezký den',
+    name: 'Po hovoru',
+    body:
+      'Dobrý den, {jmeno},\n\n' +
+      'potvrzuji naši konzultaci.\n\n' +
+      'Termín: {termin}\n' +
+      'Adresa: Vrbnovská 1414/11, Hořovice\n' +
+      'Mapa: https://maps.google.com/?q=49.838714,13.908064\n\n' +
+      'Uložte si prosím toto číslo. Těším se na setkání.\n\n' +
+      'Marek Šíma, džim\n' +
+      'www.dzimhorovice.cz',
   },
   {
-    name: 'Nedovolala jsem se',
-    body: 'Dobrý den, {jmeno},\n\nzkoušela jsem se Vám dnes dovolat, bohužel jsem Vás nezastihla. Ozvěte se prosím, až budete mít chvíli, nebo mi napište, kdy se Vám to hodí.\n\nDěkuji a hezký den',
-  },
-  {
-    name: 'Poslání informací',
-    body: 'Dobrý den, {jmeno},\n\njak jsme se domluvili po telefonu, posílám slíbené informace:\n\n\nDejte mi prosím vědět, jestli je to takhle v pořádku.\n\nS pozdravem',
-  },
-  {
-    name: 'Potvrzení schůzky',
-    body: 'Dobrý den, {jmeno},\n\npotvrzuji naši schůzku: {termin}.\n\nKdyby se něco změnilo, dejte mi prosím včas vědět. Těším se na Vás.',
-  },
-  {
-    name: 'Připomenutí schůzky',
-    body: 'Dobrý den, {jmeno},\n\njen připomínám naši schůzku: {termin}. Kdyby se něco změnilo, dejte mi prosím včas vědět.\n\nTěším se',
+    name: 'Potvrzení den předem',
+    body:
+      'Dobrý den, {jmeno},\n\n' +
+      'potvrďte prosím zítřejší konzultaci odpovědí „ANO“.\n\n' +
+      'Počítáme s Vámi: {termin}. Máme pro Vás vyhrazený blok.\n\n' +
+      'Adresa: Vrbnovská 1414/11, Hořovice\n' +
+      'Mapa: https://maps.google.com/?q=49.838714,13.908064\n\n' +
+      'Pokud se nemůžete dostavit, dejte prosím vědět, ať termín nabídneme dalšímu zájemci.\n\n' +
+      'Marek Šíma, džim',
   },
 ];
 
