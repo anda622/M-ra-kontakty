@@ -49,7 +49,7 @@ const COLUMN_ALIASES = {
 // Message templates offered in the side panel.
 // Placeholders: {jmeno} (fifth case - "Martine"), {jmeno1} (as written in the
 // sheet - "Martin"), {termin} (the appointment from MEETING_COLUMN),
-// {poznamka}, {datum}
+// {cas} (jen čas z termínu), {poznamka}, {datum}
 const TEMPLATES = [
   {
     name: 'Po hovoru',
@@ -68,7 +68,7 @@ const TEMPLATES = [
     body:
       'Dobrý den, {jmeno},\n\n' +
       'potvrďte prosím zítřejší konzultaci odpovědí „ANO“.\n\n' +
-      'Počítáme s Vámi: {termin}. Máme pro Vás vyhrazený blok.\n\n' +
+      'Počítáme s Vámi v {cas}, máme pro Vás vyhrazený blok.\n\n' +
       'Adresa: Vrbnovská 1414/11, Hořovice\n' +
       'Mapa: https://maps.google.com/?q=49.838714,13.908064\n\n' +
       'Pokud se nemůžete dostavit, dejte prosím vědět, ať termín nabídneme dalšímu zájemci.\n\n' +
@@ -346,8 +346,38 @@ function renderTemplate(body, contact) {
     .replace(/\{jmeno1\}/g, first)
     .replace(/\{jmeno\}/g, vocative_(first))
     .replace(/\{termin\}/g, meeting)
+    .replace(/\{cas\}/g, timeOnly_(meeting))
     .replace(/\{poznamka\}/g, contact.note || '')
     .replace(/\{datum\}/g, today);
+}
+
+/**
+ * Pulls just the time out of whatever is written in the appointment column:
+ * "Čtvrtek 17.9 od 15:00" -> "15:00", "11.9. 5pm" -> "5pm". Falls back to the
+ * whole text, which is better than saying nothing at all.
+ */
+function timeOnly_(text) {
+  const value = String(text || '').trim();
+  if (!value) return '';
+
+  // 15:00 - checked first, so a date like 17.09.2026 cannot be mistaken for it
+  const clock = value.match(/\d{1,2}:\d{2}/);
+  if (clock) return clock[0];
+
+  // 5pm
+  const ampm = value.match(/\d{1,2}\s*[ap]\.?m\.?/i);
+  if (ampm) return ampm[0].replace(/\s+/g, '');
+
+  // "v 9.30" / "od 9.30" - a dot form only where a preposition marks it as a
+  // time, otherwise 17.09 in a date would match
+  const dotted = value.match(/\b(?:v|od)\s+(\d{1,2})\.(\d{2})(?!\d)/i);
+  if (dotted) return dotted[1] + ':' + dotted[2];
+
+  // 18h
+  const hour = value.match(/\d{1,2}\s*h(od)?\b/i);
+  if (hour) return hour[0];
+
+  return value;
 }
 
 // --- link column (I) --------------------------------------------------------
