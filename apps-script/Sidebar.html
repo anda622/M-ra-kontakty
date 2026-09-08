@@ -129,21 +129,27 @@
           return;
         }
         showProgress(data.progress);
-        // Rebuild the message only when a different row was selected, so your
-        // edits are not thrown away by the polling below.
-        var changed = !contact || contact.row !== data.row;
+        // Rebuild the message when a different row or a different button was
+        // used, so edits are not thrown away by the polling below.
+        var changed =
+          !contact || contact.row !== data.row || contact.buttonColumn !== data.buttonColumn;
         contact = data;
         el('name').textContent = data.name || '(bez jména)';
         el('phone').innerHTML = data.phoneValid
           ? '+' + data.phone + ' <span class="muted">(řádek ' + data.row + ')</span>'
           : '<span class="warn">Neplatné číslo: ' + (data.rawPhone || 'prázdné') + '</span>';
         el('meta').textContent = [
+          data.buttonName ? data.buttonName : '',
           data.status ? 'Stav: ' + data.status : '',
           data.sentAt ? 'Odesláno: ' + data.sentAt : ''
         ].filter(Boolean).join(' · ');
 
         if (changed || force) {
           el('status').textContent = '';
+          // Each button column has its own template preselected.
+          if (typeof data.templateIndex === 'number') {
+            el('template').value = String(data.templateIndex);
+          }
           applyTemplate();
         } else {
           updateLink();
