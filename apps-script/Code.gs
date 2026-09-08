@@ -113,6 +113,17 @@ function buttonColumns_(sheet) {
   });
 }
 
+/** Má list hlavičky tlačítek? Jinak na něj skript nesmí sahat. */
+function sheetHasButtons_(sheet) {
+  const headers = sheet
+    .getRange(CONFIG.headerRow, 1, 1, Math.max(sheet.getLastColumn(), 1))
+    .getDisplayValues()[0]
+    .map(simplify_);
+  return BUTTON_COLUMNS.some(function (button) {
+    return headers.indexOf(simplify_(button.header)) !== -1;
+  });
+}
+
 /** Tlačítko, kterému patří daný sloupec, nebo null. */
 function buttonForColumn_(sheet, column) {
   const found = buttonColumns_(sheet).filter(function (button) {
@@ -443,6 +454,10 @@ function onCheckboxEdit(e) {
     return;
   }
 
+  // Jen na listu, který tlačítka opravdu má - jinak by vyplněný telefon na
+  // jiném listu založil zaškrtávátko uprostřed cizích dat.
+  if (!sheetHasButtons_(sheet)) return;
+
   const columns = findColumns_(sheet);
   if (columns.phone && edited === columns.phone) {
     buttonColumns_(sheet).forEach(function (each) {
@@ -453,6 +468,8 @@ function onCheckboxEdit(e) {
 
 function fillMissingCheckboxes() {
   SpreadsheetApp.getActive().getSheets().forEach(function (sheet) {
+    if (!sheetHasButtons_(sheet)) return;
+
     const columns = findColumns_(sheet);
     if (!columns.phone) return;
 
