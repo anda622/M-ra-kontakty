@@ -4,8 +4,6 @@ Skript pro Google Sheets. Po hovoru kliknete na řádek kontaktu, vyberete
 šablonu a otevře se WhatsApp s už napsanou zprávou pro dané číslo – vy jen
 zkontrolujete text a dáte Odeslat. Do tabulky se zapíše čas.
 
-Tabulka: <https://docs.google.com/spreadsheets/d/1vW3h5mdPgMT1eUcgI4u66yW4Ry-KSaR64SuwPxuXriY/edit>
-
 **Zdarma. Žádné API, žádný účet u Mety, žádné externí služby.** Píše se
 z vašeho běžného WhatsAppu a vaše číslo zůstane normálně používatelné
 v aplikaci – skript se ho nijak nedotkne.
