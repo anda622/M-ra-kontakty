@@ -119,6 +119,28 @@ Skloňování je odhad podle koncovky, ne slovník. Jméno, které netrefí, dop
 do tabulky `VOCATIVE_EXCEPTIONS` v `Code.gs` – klíč malými písmeny, hodnota
 přesně tak, jak se má napsat. Po úpravě soubor uložte a tabulku načtěte znovu.
 
+## Žluté zvýraznění den před schůzkou
+
+Termín ve sloupci G je volný text (*„Pátek 18.9 od 16:00"*, *„11.9. 5pm"*),
+takže se nedá filtrovat jako datum. Zvýraznění řeší podmíněné formátování –
+žádný skript, žádný trigger, obarví se hned a ručně nastavené barvy v G
+nepřepíše natrvalo.
+
+Označte `G2:G`, **Formát → Podmíněné formátování → Vlastní vzorec je**:
+
+```
+=IFERROR(DATEVALUE(REGEXEXTRACT($G2;"\d{1,2}\.\s*\d{1,2}")&"."&YEAR(TODAY()))=TODAY()+1;NEPRAVDA)
+```
+
+Výplň žlutá. `REGEXEXTRACT` vytáhne z textu první `den.měsíc`, doplní se
+letošní rok a porovná se se zítřkem. Pokud má tabulka anglické locale,
+oddělovač argumentů je čárka a místo `NEPRAVDA` patří `FALSE`.
+
+Volitelné druhé pravidlo pro dnešní schůzky – stejný vzorec s `=TODAY()`
+místo `=TODAY()+1` a jiná barva.
+
+Omezení: rok se bere z dneška, takže 31. 12. se schůzka na 1. 1. nezvýrazní.
+
 ## Co tenhle nástroj nedělá
 
 **Neodešle zprávu úplně sám** – poslední kliknutí je vždycky vaše. Není to
