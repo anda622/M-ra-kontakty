@@ -154,6 +154,7 @@ podmínky WhatsAppu a číslo může skončit zablokované.
 
 | Co vidíte | Co s tím |
 |---|---|
+| Po autorizaci se dialog neotevřel | Google prvním povolením akci přeruší a sám ji nedokončí. Klikněte na tu položku v menu znovu. |
 | V menu není **WhatsApp** | Načtěte tabulku znovu (F5); menu se přidává při otevření tabulky. |
 | „Nenašla jsem sloupec s telefonem“ | **WhatsApp → Nastavit sloupce** a vyberte sloupec ručně. |
 | „Neplatné číslo“ | Číslo v buňce je kratší než 9 číslic nebo je v buňce text (třeba dvě čísla najednou). |
