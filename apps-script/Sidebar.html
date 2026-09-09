@@ -135,9 +135,17 @@
           !contact || contact.row !== data.row || contact.buttonColumn !== data.buttonColumn;
         contact = data;
         el('name').textContent = data.name || '(bez jména)';
-        el('phone').innerHTML = data.phoneValid
-          ? '+' + data.phone + ' <span class="muted">(řádek ' + data.row + ')</span>'
-          : '<span class="warn">Neplatné číslo: ' + (data.rawPhone || 'prázdné') + '</span>';
+        if (data.phoneValid) {
+          el('phone').innerHTML =
+            '+' + data.phone + ' <span class="muted">(řádek ' + data.row + ')</span>';
+        } else {
+          // rawPhone přichází z formuláře na webu, takže ho vypisujeme jako text.
+          var bad = document.createElement('span');
+          bad.className = 'warn';
+          bad.textContent = 'Neplatné číslo: ' + (data.rawPhone || 'prázdné');
+          el('phone').textContent = '';
+          el('phone').appendChild(bad);
+        }
         el('meta').textContent = [
           data.buttonName ? data.buttonName : '',
           data.status ? 'Stav: ' + data.status : '',
